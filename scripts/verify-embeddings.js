@@ -151,11 +151,11 @@ async function main() {
         getFirstNWords(article.raw_text || "", 500);
 
       // Generate new embedding
-        const response = await genAI.models.embedContent({
-          model: EXPECTED_EMBEDDING_MODEL,
-          contents: inputText,
-          config: { outputDimensionality: 768, taskType: "SEMANTIC_SIMILARITY" },
-        });
+      const response = await genAI.models.embedContent({
+        model: EXPECTED_EMBEDDING_MODEL,
+        contents: inputText,
+        config: { outputDimensionality: 768, taskType: "SEMANTIC_SIMILARITY" },
+      });
       const newEmbedding = normalizeL2(response.embeddings[0].values);
       console.log(
         `  New embedding first 10 elements: ${JSON.stringify(newEmbedding.slice(0, 10))}`,

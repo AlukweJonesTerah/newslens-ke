@@ -8,7 +8,9 @@ function getSupabaseClient() {
   const key =
     process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    throw new Error("Missing Supabase credentials. Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env.local");
+    throw new Error(
+      "Missing Supabase credentials. Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env.local",
+    );
   }
   return createClient(url, key);
 }
@@ -31,7 +33,9 @@ async function main() {
     throw new Error(`Failed to reset embeddings: ${error.message}`);
   }
 
-  console.log("✅ All article embeddings and embedding_model values have been reset to NULL.");
+  console.log(
+    "✅ All article embeddings and embedding_model values have been reset to NULL.",
+  );
   console.log("=".repeat(72));
 }
 

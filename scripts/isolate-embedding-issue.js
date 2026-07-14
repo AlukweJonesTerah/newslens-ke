@@ -90,7 +90,9 @@ async function main() {
 
   const article = articles[0];
   const inputText =
-    (article.title || "") + "\n\n" + getFirstNWords(article.raw_text || "", 500);
+    (article.title || "") +
+    "\n\n" +
+    getFirstNWords(article.raw_text || "", 500);
   const textHash = hashString(inputText);
 
   console.log("\nArticle title:", article.title);

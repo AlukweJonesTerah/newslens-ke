@@ -5,9 +5,13 @@ const { Pool } = require("pg");
 
 // Configuration
 const CLUSTER_WINDOW_HOURS = parseInt(process.env.CLUSTER_WINDOW_HOURS || "72");
-const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD || "0.83");
+const SIMILARITY_THRESHOLD = parseFloat(
+  process.env.SIMILARITY_THRESHOLD || "0.83",
+);
 // Margin to relax anchor check compared to the centroid threshold
-const ANCHOR_THRESHOLD_MARGIN = parseFloat(process.env.ANCHOR_THRESHOLD_MARGIN || "0.03");
+const ANCHOR_THRESHOLD_MARGIN = parseFloat(
+  process.env.ANCHOR_THRESHOLD_MARGIN || "0.03",
+);
 
 function parseEmbeddingValue(embedding) {
   if (Array.isArray(embedding)) return embedding;
@@ -77,7 +81,9 @@ class UnionFind {
 async function main() {
   console.log("NewsLens KE — Story Clustering");
   console.log("=".repeat(72));
-  console.log(`Config: Cluster window = ${CLUSTER_WINDOW_HOURS}h, similarity threshold = ${SIMILARITY_THRESHOLD}`);
+  console.log(
+    `Config: Cluster window = ${CLUSTER_WINDOW_HOURS}h, similarity threshold = ${SIMILARITY_THRESHOLD}`,
+  );
   console.log("=".repeat(72));
 
   // Database connection (using DATABASE_URL from .env.local)
@@ -87,8 +93,12 @@ async function main() {
 
   try {
     // 1. Fetch articles within the window
-    const windowStart = new Date(Date.now() - CLUSTER_WINDOW_HOURS * 3600 * 1000);
-    console.log(`Fetching articles published after: ${windowStart.toISOString()}`);
+    const windowStart = new Date(
+      Date.now() - CLUSTER_WINDOW_HOURS * 3600 * 1000,
+    );
+    console.log(
+      `Fetching articles published after: ${windowStart.toISOString()}`,
+    );
 
     const { rows: articles } = await pool.query(
       `
@@ -105,7 +115,7 @@ async function main() {
           AND a.published_at >= $1
         ORDER BY a.published_at ASC
       `,
-      [windowStart]
+      [windowStart],
     );
 
     const normalizedArticles = articles.map((article) => ({
@@ -186,7 +196,10 @@ async function main() {
         const c = clusters[ci];
         const centroidSim = cosineSimilarityLocal(c.centroid, emb);
         const anchorSim = cosineSimilarityLocal(c.anchorEmbedding, emb);
-        if (centroidSim >= SIMILARITY_THRESHOLD && anchorSim >= anchorThreshold) {
+        if (
+          centroidSim >= SIMILARITY_THRESHOLD &&
+          anchorSim >= anchorThreshold
+        ) {
           if (centroidSim > bestSim) {
             bestSim = centroidSim;
             bestIdx = ci;
@@ -219,7 +232,9 @@ async function main() {
     }
 
     // 6: Clear existing stories and story_articles for the window
-    console.log("Clearing existing stories/story_articles for this cluster window...");
+    console.log(
+      "Clearing existing stories/story_articles for this cluster window...",
+    );
     const clearResult = await pool.query(
       `
         DELETE FROM story_articles
@@ -227,7 +242,7 @@ async function main() {
           SELECT id FROM articles WHERE published_at >= $1
         )
       `,
-      [windowStart]
+      [windowStart],
     );
     await pool.query(
       `
@@ -235,7 +250,7 @@ async function main() {
         WHERE id NOT IN (
           SELECT story_id FROM story_articles
         )
-      `
+      `,
     );
     console.log(`Deleted ${clearResult.rowCount} story_article links`);
 
@@ -254,7 +269,7 @@ async function main() {
       }
 
       const clusterArticles = cluster.articles.sort(
-        (a, b) => new Date(a.published_at) - new Date(b.published_at)
+        (a, b) => new Date(a.published_at) - new Date(b.published_at),
       );
       const title = clusterArticles[0].title;
 
@@ -265,7 +280,9 @@ async function main() {
     }
 
     // Now insert the stories and story_articles!
-    console.log(`Inserting ${multiArticleClusters.length} story clusters (excluding single-article stories)...`);
+    console.log(
+      `Inserting ${multiArticleClusters.length} story clusters (excluding single-article stories)...`,
+    );
     for (const cluster of multiArticleClusters) {
       const { rows: storyRows } = await pool.query(
         `
@@ -273,7 +290,7 @@ async function main() {
           VALUES ($1, NOW())
           RETURNING id
         `,
-        [cluster.title]
+        [cluster.title],
       );
       const storyId = storyRows[0].id;
       storyInsertions++;
@@ -285,7 +302,7 @@ async function main() {
             VALUES ($1, $2)
             ON CONFLICT DO NOTHING
           `,
-          [storyId, a.id]
+          [storyId, a.id],
         );
       }
     }
@@ -297,7 +314,9 @@ async function main() {
     console.log("=".repeat(72));
     console.log(`Total clusters found: ${clusters.length}`);
     console.log(`  - Single-article clusters (skipped): ${singleArticleCount}`);
-    console.log(`  - Multi-article clusters (inserted as stories): ${multiArticleClusters.length}`);
+    console.log(
+      `  - Multi-article clusters (inserted as stories): ${multiArticleClusters.length}`,
+    );
     console.log("=".repeat(72));
 
     if (multiArticleClusters.length > 0) {
@@ -305,7 +324,9 @@ async function main() {
       for (let i = 0; i < multiArticleClusters.length; i++) {
         const cluster = multiArticleClusters[i];
         console.log("\n" + "-".repeat(72));
-        console.log(`Cluster ${i + 1} (size ${cluster.articles.length}): "${cluster.title}"`);
+        console.log(
+          `Cluster ${i + 1} (size ${cluster.articles.length}): "${cluster.title}"`,
+        );
         console.log("-".repeat(72));
         for (const a of cluster.articles) {
           console.log(`  [${a.source_name}] ${a.title}`);
@@ -321,7 +342,7 @@ async function main() {
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
