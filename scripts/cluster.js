@@ -10,8 +10,29 @@ const SIMILARITY_THRESHOLD = parseFloat(
 );
 // Margin to relax anchor check compared to the centroid threshold
 const ANCHOR_THRESHOLD_MARGIN = parseFloat(
-  process.env.ANCHOR_THRESHOLD_MARGIN || "0.03",
+  process.env.ANCHOR_THRESHOLD_MARGIN || "0.015",
 );
+// Debug flag: log candidate centroid/anchor similarities when near thresholds
+const DEBUG_CLUSTERING = process.env.DEBUG_CLUSTERING === "true";
+
+// Generic template vocabulary to ignore when extracting distinguishing proper nouns
+const GENERIC_TEMPLATE_WORDS = new Set([
+  "university",
+  "college",
+  "institute",
+  "kenya",
+  "county",
+  "courses",
+  "course",
+  "fees",
+  "fee",
+  "structure",
+  "cluster",
+  "points",
+  "school",
+  "2025",
+  "2026",
+]);
 
 function parseEmbeddingValue(embedding) {
   if (Array.isArray(embedding)) return embedding;
@@ -75,6 +96,34 @@ class UnionFind {
     }
     return Array.from(clusters.values());
   }
+}
+
+// Extract crude proper-noun tokens from a title. Returns a Set of lowercased tokens.
+// Heuristic: capitalized words (not punctuation-only), length >= 3, excluding generic template words.
+function extractProperNounTokens(title) {
+  if (!title || typeof title !== "string") return new Set();
+  const words = title.split(/\s+/);
+  const tokens = new Set();
+  for (const w of words) {
+    const clean = w.replace(/[^A-Za-z\u00C0-\u017F'-]/g, "");
+    if (clean.length < 3) continue;
+    // consider words that start with a capital letter (simple heuristic)
+    if (/^[A-Z\u00C0-\u017F]/.test(clean)) {
+      const lower = clean.toLowerCase();
+      if (!GENERIC_TEMPLATE_WORDS.has(lower)) tokens.add(lower);
+    }
+  }
+  return tokens;
+}
+
+// Compute overlap count between two titles. Returns null when neither title yields tokens.
+function properNounOverlap(titleA, titleB) {
+  const a = extractProperNounTokens(titleA);
+  const b = extractProperNounTokens(titleB);
+  if ((!a || a.size === 0) && (!b || b.size === 0)) return null;
+  let shared = 0;
+  for (const t of a) if (b.has(t)) shared++;
+  return shared;
 }
 
 // Main function
@@ -176,6 +225,8 @@ async function main() {
       return dot / (n1 * n2);
     }
 
+    
+
     // Clusters: each cluster has { ids: [], articles: [], sum: [...], count: N, centroid: [...], anchorEmbedding: [...] }
     const clusters = [];
 
@@ -196,10 +247,32 @@ async function main() {
         const c = clusters[ci];
         const centroidSim = cosineSimilarityLocal(c.centroid, emb);
         const anchorSim = cosineSimilarityLocal(c.anchorEmbedding, emb);
-        if (
+        // Title-based proper-noun / entity overlap gate to prevent template-listicle false matches
+        const founderTitle = (c.articles && c.articles[0] && c.articles[0].title) || "";
+        const entityOverlap = properNounOverlap(article.title, founderTitle);
+        const entityGatePasses = entityOverlap === null || entityOverlap >= 1;
+        const passes =
           centroidSim >= SIMILARITY_THRESHOLD &&
-          anchorSim >= anchorThreshold
+          anchorSim >= anchorThreshold &&
+          entityGatePasses;
+
+        if (
+          DEBUG_CLUSTERING &&
+          (centroidSim >= SIMILARITY_THRESHOLD - 0.1 || anchorSim >= anchorThreshold - 0.1)
         ) {
+          // Only log near-miss/near-hit candidates to keep noise down
+          console.log(
+            `  [candidate] "${(article.title || "").slice(0, 60)}" -> cluster anchor "${(
+              c.articles[0].title || ""
+            ).slice(0, 60)}" ` +
+              `| centroidSim=${centroidSim.toFixed(4)} (need ${SIMILARITY_THRESHOLD}) ` +
+              `| anchorSim=${anchorSim.toFixed(4)} (need ${anchorThreshold.toFixed(4)}) ` +
+              `| entityOverlap=${entityOverlap === null ? "?" : entityOverlap} ` +
+              `| ${passes ? "PASS" : "REJECT"}`,
+          );
+        }
+
+        if (passes) {
           if (centroidSim > bestSim) {
             bestSim = centroidSim;
             bestIdx = ci;
@@ -342,7 +415,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+module.exports = { extractProperNounTokens, properNounOverlap };

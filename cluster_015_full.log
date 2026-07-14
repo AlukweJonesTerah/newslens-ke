@@ -1,0 +1,187 @@
+
+> newslens-ke@0.1.0 cluster
+> node scripts/cluster.js
+
+◇ injected env (6) from .env.local // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+NewsLens KE — Story Clustering
+========================================================================
+Config: Cluster window = 72h, similarity threshold = 0.83
+========================================================================
+Fetching articles published after: 2026-07-11T15:26:29.600Z
+Found 205 articles for clustering
+Building story clusters using centroid-based clustering...
+Clearing existing stories/story_articles for this cluster window...
+Deleted 69 story_article links
+Inserting 22 story clusters (excluding single-article stories)...
+
+
+
+========================================================================
+CLUSTERING RESULTS
+========================================================================
+Total clusters found: 160
+  - Single-article clusters (skipped): 138
+  - Multi-article clusters (inserted as stories): 22
+========================================================================
+
+--- Multi-Article Clusters ---
+
+------------------------------------------------------------------------
+Cluster 1 (size 2): "Kenyan newspapers, July 12: Rigathi Gachagua to present Uhuru report after 45-day conclave"
+------------------------------------------------------------------------
+  [Tuko (politics)] Kenyan newspapers, July 12: Rigathi Gachagua to present Uhuru report after 45-day conclave
+  [Tuko (politics)] Kenyan newspapers review: Linda Mwananchi leaders attacked by goons in Kisumu, Nyahururu
+
+------------------------------------------------------------------------
+Cluster 2 (size 2): "Kofi Annan Foundation Sounds Alarm on Kenya Ahead of 2027 General Elections"
+------------------------------------------------------------------------
+  [Kenyans.co.ke] Kofi Annan Foundation Sounds Alarm on Kenya Ahead of 2027 General Elections
+  [People Daily] Kenya faces 84% chance of experiencing PEV in 2027 – Kofi Annan report
+
+------------------------------------------------------------------------
+Cluster 3 (size 3): "Ol Kalou by-election: Moses Kuria backs Kang'ata, lists 3 things Gachagua fears most"
+------------------------------------------------------------------------
+  [Tuko (politics)] Ol Kalou by-election: Moses Kuria backs Kang'ata, lists 3 things Gachagua fears most
+  [Tuko (politics)] Governor Irungu Kang'ata's driver allegedly shot by police during chaos in Ol Kalou
+  [Tuko (politics)] Moses Kuria says violence against Linda Mwananchi team in Nyahururu was not organised by opposition
+
+------------------------------------------------------------------------
+Cluster 4 (size 2): "Rigathi Gachagua meets Nairobi Senate aspirant Ken Babu at Wamunyoro residence"
+------------------------------------------------------------------------
+  [Tuko (politics)] Rigathi Gachagua meets Nairobi Senate aspirant Ken Babu at Wamunyoro residence
+  [Tuko (politics)] DCP gains ground in Nyeri Town as Roba Wa Bursary launches Gatitu drive
+
+------------------------------------------------------------------------
+Cluster 5 (size 8): "Chaos as Armed Goons Attempt to Raid Linda Mwananchi Church Service"
+------------------------------------------------------------------------
+  [Kenyans.co.ke] Chaos as Armed Goons Attempt to Raid Linda Mwananchi Church Service
+  [Kenyans.co.ke] Governor's Driver Shot as Chaos Erupt During Rally
+  [Tuko (politics)] Kisumu: James Orengo condemns near-goon attack on him, Edwin Sifuna at church
+  [Kenyans.co.ke] Police Address Alleged Shooting of Governor Irungu Kang'ata's Driver
+  [Kenyans.co.ke] County Govt Confirms Arrest of Over 200 Individuals Amid Crackdown on Goons
+  [Kenyans.co.ke] Murkomen Announces Fresh Anti-Goon Plan Ahead of Ol Kalou Polls
+  [Nation Africa] Take swift and firm actions to stop rising goon attacks
+  [Nation Africa] 'He gave me Sh50 for church': Father's last memory of son killed in Kisumu church violence
+
+------------------------------------------------------------------------
+Cluster 6 (size 2): "Ruto Reveals New Timelines for Completion of Deadly Stalled Bridge"
+------------------------------------------------------------------------
+  [Kenyans.co.ke] Ruto Reveals New Timelines for Completion of Deadly Stalled Bridge
+  [Kenyans.co.ke] Ruto Issues Fresh Orders to Ministry Over Delayed Multi-Billion Project
+
+------------------------------------------------------------------------
+Cluster 7 (size 2): "Oburu declares ODM won't field presidential candidate, endorses Ruto"
+------------------------------------------------------------------------
+  [The Standard] Oburu declares ODM won't field presidential candidate, endorses Ruto
+  [Tuko (politics)] Oburu Oginga declares ODM will not field presidential candidate in 2027 poll
+
+------------------------------------------------------------------------
+Cluster 8 (size 6): "Lobby Group Piles Pressure on IEBC Ahead of Ol Kalou By-Election"
+------------------------------------------------------------------------
+  [Kenyans.co.ke] Lobby Group Piles Pressure on IEBC Ahead of Ol Kalou By-Election
+  [Kenyans.co.ke] Explainer: When IEBC Can Postpone an Election Under Kenyan Law
+  [Tuko (politics)] Ol Kalou by-election: IEBC issues update amid fears of postponing July 16 minipoll
+  [Tuko (politics)] Ol Kalou by-election: DCP leaders ask IEBC to disqualify UDA candidate over voter bribery
+  [Nation Africa] EACC launches probe into Ol Kalou voter bribery claims
+  [People Daily] MP Gakuya demands IEBC-police coordination, warns of action if Ol Kalou vote is compromised
+
+------------------------------------------------------------------------
+Cluster 9 (size 2): "CCTV Captures Moment Armed Man Ambushes Women Inside Salon"
+------------------------------------------------------------------------
+  [Kenyans.co.ke] CCTV Captures Moment Armed Man Ambushes Women Inside Salon
+  [Kenyans.co.ke] Suspect in Viral CCTV Restaurant Robbery Killed After Shootout
+
+------------------------------------------------------------------------
+Cluster 10 (size 3): "Panic as Fire Breaks Out Inside High School"
+------------------------------------------------------------------------
+  [Kenyans.co.ke] Panic as Fire Breaks Out Inside High School
+  [Tuko (all)] Fresh details reveal why Jomo Kenyatta Boys students set 10 classes and offices on fire
+  [Tuko (all)] Jomo Kenyatta Boys parents react to school fire, question alleged cause: “Tutaweza kulipa hii kweli”
+
+------------------------------------------------------------------------
+Cluster 11 (size 4): "Kalonzo-Sifuna tops preferred opposition pairing for 2027 presidential race, new poll"
+------------------------------------------------------------------------
+  [Tuko (politics)] Kalonzo-Sifuna tops preferred opposition pairing for 2027 presidential race, new poll
+  [Tuko (politics)] Kithure Kindiki emerges as most preferred running mate for William Ruto in 2027, new poll
+  [Tuko (politics)] Kenyan newspapers review, July 14: Survey suggests run-off is likely in 2027 presidential vote
+  [People Daily] Caleb Amisi predicts 2027 run-off after poll places Ruto ahead with 32 per cent
+
+------------------------------------------------------------------------
+Cluster 12 (size 4): "Speaker Wetang'ula Faces Possible Jail Term After Fresh Contempt Case"
+------------------------------------------------------------------------
+  [Kenyans.co.ke] Speaker Wetang'ula Faces Possible Jail Term After Fresh Contempt Case
+  [The Standard] Wetang'ula risks jail over alleged breach of court orders on political campaigns
+  [Tuko (politics)] Speaker Moses Wetang'ula faces possible jail term as High Court Certifies contempt case urgent
+  [Nation Africa] Wetang'ula faces contempt of court over Ruto campaign order
+
+------------------------------------------------------------------------
+Cluster 13 (size 2): "Why World Bank has delayed Sh78bn emergency loan to Kenya"
+------------------------------------------------------------------------
+  [Business Daily Africa] Why World Bank has delayed Sh78bn emergency loan to Kenya
+  [Kenyans.co.ke] Ruto’s Fuel Price Cushion Plan Delayed After World Bank’s Directive
+
+------------------------------------------------------------------------
+Cluster 14 (size 2): "Kipchumba Murkomen condemns goonism, political violence ahead of Ol Kalou by-election"
+------------------------------------------------------------------------
+  [Tuko (politics)] Kipchumba Murkomen condemns goonism, political violence ahead of Ol Kalou by-election
+  [People Daily] Kindiki: Those aiding violence will be punished, regardless of who they support
+
+------------------------------------------------------------------------
+Cluster 15 (size 4): "EALA MP Kanini Kega reports that he has been attacked at Kasuku in Nyandarua"
+------------------------------------------------------------------------
+  [Nation Africa] EALA MP Kanini Kega reports that he has been attacked at Kasuku in Nyandarua
+  [Nation Africa] Police probe alleged shooting involving EALA lawmaker Kanini Kega
+  [Kenyans.co.ke] Close Gachagua Ally and MP Attacked in Ol Kalou
+  [Tuko (all)] Ol Kalou: Kanini Kega's car attacked as DCP, UDA supporters clash ahead of July 16 poll
+
+------------------------------------------------------------------------
+Cluster 16 (size 3): "Salasya rallies Ol Kalou voters to back DCP’s Sammy Ngotho"
+------------------------------------------------------------------------
+  [People Daily] Salasya rallies Ol Kalou voters to back DCP’s Sammy Ngotho
+  [People Daily] Muchina makes final appeal as Ol Kalou campaigns end
+  [People Daily] DCP’s Kamau Ngotho urges Ol Kalou voters outside constituency to contact him before poll
+
+------------------------------------------------------------------------
+Cluster 17 (size 4): "MP Caroli Omondi: Goons are hired criminals, not political activists"
+------------------------------------------------------------------------
+  [People Daily] MP Caroli Omondi: Goons are hired criminals, not political activists
+  [People Daily] Sossion asserts goons are paid by politicians across political divide
+  [People Daily] Caroli Omondi accuses State of using plainclothes officers as goons
+  [People Daily] Sossion urges Interior Ministry to prosecute goon sponsors
+
+------------------------------------------------------------------------
+Cluster 18 (size 2): "Nairobi Institute of Business Studies courses & fee structure"
+------------------------------------------------------------------------
+  [Tuko (all)] Nairobi Institute of Business Studies courses & fee structure
+  [Tuko (all)] ICS College courses and the fee structure that makes it one of Nairobi's most popular choices
+
+------------------------------------------------------------------------
+Cluster 19 (size 2): "National Assembly dismisses claims Sacco Bill is being rushed through Parliament"
+------------------------------------------------------------------------
+  [People Daily] National Assembly dismisses claims Sacco Bill is being rushed through Parliament
+  [People Daily] SACCOs deny govt can dictate how members’ savings are invested
+
+------------------------------------------------------------------------
+Cluster 20 (size 4): "NTSA sounds alarm over uncollected logbooks as deadline nears"
+------------------------------------------------------------------------
+  [People Daily] NTSA sounds alarm over uncollected logbooks as deadline nears
+  [Kenyans.co.ke] NTSA Gives Fresh Directive Over Unclaimed Logbooks, Number Plates & Licences
+  [Tuko (all)] NTSA to destroy uncollected logbooks, gives timeline for owners to collect them
+  [Tuko (all)] NTSA Warns It Will Destroy Uncollected Logbooks, Urges Owners to Collect Them within 5 months
+
+------------------------------------------------------------------------
+Cluster 21 (size 2): "Chuka University courses offered in 2025/2026, fees and cluster points"
+------------------------------------------------------------------------
+  [Tuko (all)] Chuka University courses offered in 2025/2026, fees and cluster points
+  [Tuko (all)] University of Eldoret courses, cluster points & fees structure
+
+------------------------------------------------------------------------
+Cluster 22 (size 2): "William Ruto mourns Qatar's Sheikh Hamad bin Khalifa Al Thani: "Deepest sympathies to your Highness""
+------------------------------------------------------------------------
+  [Tuko (all)] William Ruto mourns Qatar's Sheikh Hamad bin Khalifa Al Thani: "Deepest sympathies to your Highness"
+  [People Daily] Ruto mourns former Qatar Amir Sheikh Hamad bin Khalifa Al Thani
+
+========================================================================
+✅ Done!
+========================================================================

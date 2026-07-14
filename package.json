@@ -10,7 +10,9 @@
     "test:feeds": "node scripts/test-feeds.js",
     "ingest": "node scripts/ingest.js",
     "embed": "node scripts/embed.js",
-    "cluster": "node scripts/cluster.js"
+    "cluster": "node scripts/cluster.js",
+    "test:entity": "node scripts/test_entity_overlap.js",
+    "test": "npm run test:entity"
   },
   "dependencies": {
     "@google/genai": "^2.11.0",
