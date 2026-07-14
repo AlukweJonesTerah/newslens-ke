@@ -6,12 +6,36 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:feeds": "node scripts/test-feeds.js",
+    "ingest": "node scripts/ingest.js",
+    "embed": "node scripts/embed.js",
+    "cluster": "node scripts/cluster.js"
   },
   "dependencies": {
+    "@google/genai": "^2.11.0",
+    "@mozilla/readability": "^0.6.0",
+    "@prisma/client": "^7.8.0",
+    "@supabase/ssr": "^0.12.1",
+    "@supabase/supabase-js": "^2.110.3",
+    "ai": "^7.0.26",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "dotenv": "^17.4.2",
+    "jsdom": "^29.1.1",
+    "lucide-react": "^1.24.0",
     "next": "16.2.10",
+    "pg": "^8.22.0",
+    "prisma": "^7.8.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.81.0",
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.9.2",
+    "rss-parser": "^3.13.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
