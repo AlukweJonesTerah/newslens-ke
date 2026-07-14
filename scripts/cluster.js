@@ -225,8 +225,6 @@ async function main() {
       return dot / (n1 * n2);
     }
 
-    
-
     // Clusters: each cluster has { ids: [], articles: [], sum: [...], count: N, centroid: [...], anchorEmbedding: [...] }
     const clusters = [];
 
@@ -248,7 +246,8 @@ async function main() {
         const centroidSim = cosineSimilarityLocal(c.centroid, emb);
         const anchorSim = cosineSimilarityLocal(c.anchorEmbedding, emb);
         // Title-based proper-noun / entity overlap gate to prevent template-listicle false matches
-        const founderTitle = (c.articles && c.articles[0] && c.articles[0].title) || "";
+        const founderTitle =
+          (c.articles && c.articles[0] && c.articles[0].title) || "";
         const entityOverlap = properNounOverlap(article.title, founderTitle);
         const entityGatePasses = entityOverlap === null || entityOverlap >= 1;
         const passes =
@@ -258,7 +257,8 @@ async function main() {
 
         if (
           DEBUG_CLUSTERING &&
-          (centroidSim >= SIMILARITY_THRESHOLD - 0.1 || anchorSim >= anchorThreshold - 0.1)
+          (centroidSim >= SIMILARITY_THRESHOLD - 0.1 ||
+            anchorSim >= anchorThreshold - 0.1)
         ) {
           // Only log near-miss/near-hit candidates to keep noise down
           console.log(
