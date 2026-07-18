@@ -3,10 +3,7 @@
  * Usage: node scripts/ingest.js
  */
 
-require("dotenv").config({ path: ".env.local" });
-require("dotenv").config();
-
-const { createClient } = require("@supabase/supabase-js");
+const { getSupabaseClient, sleep } = require("./lib.js");
 const { Readability } = require("@mozilla/readability");
 const { JSDOM } = require("jsdom");
 const Parser = require("rss-parser");
@@ -64,22 +61,6 @@ const parser = new Parser({
   },
 });
 
-function getSupabaseClient() {
-  const url =
-    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error(
-      "Missing Supabase credentials. Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env.local"
-    );
-  }
-
-  return createClient(url, key);
-}
-
 function normalizeUrl(rawUrl) {
   if (!rawUrl) return null;
 
@@ -102,9 +83,14 @@ function stripHtml(html) {
   if (!html) return "";
   try {
     const dom = new JSDOM(`<body>${html}</body>`);
-    return dom.window.document.body.textContent?.replace(/\s+/g, " ").trim() || "";
+    return (
+      dom.window.document.body.textContent?.replace(/\s+/g, " ").trim() || ""
+    );
   } catch {
-    return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return html
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 }
 
@@ -128,10 +114,6 @@ function parsePublishedAt(item) {
 
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
-async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function fetchHtml(url) {
@@ -299,7 +281,7 @@ async function ingestSource(supabase, source) {
     } catch (err) {
       stats.errors += 1;
       console.error(
-        `  Item error (${source.name}, ${link}): ${err?.message || err}`
+        `  Item error (${source.name}, ${link}): ${err?.message || err}`,
       );
     }
 
@@ -349,11 +331,9 @@ function printSummary(allStats) {
   console.log("=".repeat(72));
 }
 
-async function main() {
-  console.log("NewsLens KE — RSS Ingestion");
+async function runIngest(supabase) {
+  console.log("📰 NewsLens KE — RSS Ingestion");
   console.log("=".repeat(72));
-
-  const supabase = getSupabaseClient();
 
   console.log("Seeding sources...");
   const sources = await seedSources(supabase);
@@ -370,15 +350,26 @@ async function main() {
       console.log(`  ✗ Feed failed: ${stats.feedError}`);
     } else {
       console.log(
-        `  ✓ Done — inserted ${stats.inserted}, skipped ${stats.skipped}, extraction fallback ${stats.failedExtraction}`
+        `  ✓ Done — inserted ${stats.inserted}, skipped ${stats.skipped}, extraction fallback ${stats.failedExtraction}`,
       );
     }
   }
 
   printSummary(allStats);
+
+  return allStats;
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err.message || err);
-  process.exit(1);
-});
+async function main() {
+  const supabase = getSupabaseClient();
+  return runIngest(supabase);
+}
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error("Fatal error:", err.message || err);
+    process.exit(1);
+  });
+}
+
+module.exports = { runIngest };

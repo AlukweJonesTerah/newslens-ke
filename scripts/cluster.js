@@ -127,8 +127,8 @@ function properNounOverlap(titleA, titleB) {
 }
 
 // Main function
-async function main() {
-  console.log("NewsLens KE — Story Clustering");
+async function runCluster() {
+  console.log("🔗 NewsLens KE — Story Clustering");
   console.log("=".repeat(72));
   console.log(
     `Config: Cluster window = ${CLUSTER_WINDOW_HOURS}h, similarity threshold = ${SIMILARITY_THRESHOLD}`,
@@ -141,7 +141,6 @@ async function main() {
   });
 
   try {
-    // 1. Fetch articles within the window
     const windowStart = new Date(
       Date.now() - CLUSTER_WINDOW_HOURS * 3600 * 1000,
     );
@@ -175,10 +174,13 @@ async function main() {
     console.log(`Found ${normalizedArticles.length} articles for clustering`);
     if (normalizedArticles.length < 2) {
       console.log("Not enough articles to cluster, exiting.");
-      return;
+      return {
+        totalClusters: 0,
+        singleArticleClusters: 0,
+        multiArticleClusters: 0,
+      };
     }
 
-    // 2. Centroid-based clustering (process oldest -> newest)
     console.log("Building story clusters using centroid-based clustering...");
     const articleMap = new Map(normalizedArticles.map((a) => [a.id, a]));
 
@@ -225,18 +227,12 @@ async function main() {
       return dot / (n1 * n2);
     }
 
-    // Clusters: each cluster has { ids: [], articles: [], sum: [...], count: N, centroid: [...], anchorEmbedding: [...] }
     const clusters = [];
 
-    // Ensure articles sorted oldest first (published_at ASC already from query)
     for (const article of normalizedArticles) {
       const emb = article.embedding;
       if (!Array.isArray(emb) || emb.length === 0) continue;
 
-      // Compare to existing cluster centroids and anchors.
-      // We'll only consider clusters where BOTH:
-      //  - similarity to centroid >= SIMILARITY_THRESHOLD
-      //  - similarity to anchorEmbedding >= (SIMILARITY_THRESHOLD - ANCHOR_THRESHOLD_MARGIN)
       const anchorThreshold = SIMILARITY_THRESHOLD - ANCHOR_THRESHOLD_MARGIN;
       let bestSim = -1;
       let bestIdx = -1;
@@ -245,7 +241,6 @@ async function main() {
         const c = clusters[ci];
         const centroidSim = cosineSimilarityLocal(c.centroid, emb);
         const anchorSim = cosineSimilarityLocal(c.anchorEmbedding, emb);
-        // Title-based proper-noun / entity overlap gate to prevent template-listicle false matches
         const founderTitle =
           (c.articles && c.articles[0] && c.articles[0].title) || "";
         const entityOverlap = properNounOverlap(article.title, founderTitle);
@@ -254,23 +249,6 @@ async function main() {
           centroidSim >= SIMILARITY_THRESHOLD &&
           anchorSim >= anchorThreshold &&
           entityGatePasses;
-
-        if (
-          DEBUG_CLUSTERING &&
-          (centroidSim >= SIMILARITY_THRESHOLD - 0.1 ||
-            anchorSim >= anchorThreshold - 0.1)
-        ) {
-          // Only log near-miss/near-hit candidates to keep noise down
-          console.log(
-            `  [candidate] "${(article.title || "").slice(0, 60)}" -> cluster anchor "${(
-              c.articles[0].title || ""
-            ).slice(0, 60)}" ` +
-              `| centroidSim=${centroidSim.toFixed(4)} (need ${SIMILARITY_THRESHOLD}) ` +
-              `| anchorSim=${anchorSim.toFixed(4)} (need ${anchorThreshold.toFixed(4)}) ` +
-              `| entityOverlap=${entityOverlap === null ? "?" : entityOverlap} ` +
-              `| ${passes ? "PASS" : "REJECT"}`,
-          );
-        }
 
         if (passes) {
           if (centroidSim > bestSim) {
@@ -281,18 +259,15 @@ async function main() {
       }
 
       if (bestIdx >= 0) {
-        // Add to best cluster: update sum and count and centroid, anchor stays unchanged
         const c = clusters[bestIdx];
         c.ids.push(article.id);
         c.articles.push(article);
         c.count += 1;
         if (!c.sum || c.sum.length === 0) c.sum = emb.slice();
         else c.sum = addVectors(c.sum, emb);
-        // centroid = normalize(sum / count)
         const avg = divideVector(c.sum, c.count);
         c.centroid = normalizeL2Local(avg);
       } else {
-        // Start a new cluster where this article is the founding article (anchor)
         clusters.push({
           ids: [article.id],
           articles: [article],
@@ -304,7 +279,6 @@ async function main() {
       }
     }
 
-    // 6: Clear existing stories and story_articles for the window
     console.log(
       "Clearing existing stories/story_articles for this cluster window...",
     );
@@ -327,10 +301,10 @@ async function main() {
     );
     console.log(`Deleted ${clearResult.rowCount} story_article links`);
 
-    // Now process clusters and insert new stories
     let singleArticleCount = 0;
     let multiArticleClusters = [];
     let storyInsertions = 0;
+    const newStoryIds = [];
 
     for (const cluster of clusters) {
       if (!cluster || !cluster.articles || cluster.articles.length === 0) {
@@ -345,14 +319,12 @@ async function main() {
         (a, b) => new Date(a.published_at) - new Date(b.published_at),
       );
       const title = clusterArticles[0].title;
-
       multiArticleClusters.push({
         title,
         articles: clusterArticles,
       });
     }
 
-    // Now insert the stories and story_articles!
     console.log(
       `Inserting ${multiArticleClusters.length} story clusters (excluding single-article stories)...`,
     );
@@ -366,6 +338,7 @@ async function main() {
         [cluster.title],
       );
       const storyId = storyRows[0].id;
+      newStoryIds.push(storyId);
       storyInsertions++;
 
       for (const a of cluster.articles) {
@@ -378,57 +351,31 @@ async function main() {
           [storyId, a.id],
         );
       }
-      // Trigger async summarization job for this story (detached child process)
-      try {
-        const spawn = require('child_process').spawn;
-        const nodeArgs = [
-          require('path').join(__dirname, 'summarize_stories.js'),
-          `--story=${storyId}`,
-        ];
-        const child = spawn(process.execPath, nodeArgs, {
-          detached: true,
-          stdio: 'ignore',
-          cwd: process.cwd(),
-        });
-        child.unref();
-      } catch (e) {
-        console.warn('Failed to spawn summarizer for story', storyId, e.message || e);
-      }
     }
 
-    // 7: Log everything clearly!
-    console.log("\n".repeat(2));
-    console.log("=".repeat(72));
-    console.log("CLUSTERING RESULTS");
+    console.log("\n" + "=".repeat(72));
+    console.log("✅ CLUSTERING RESULTS");
     console.log("=".repeat(72));
     console.log(`Total clusters found: ${clusters.length}`);
     console.log(`  - Single-article clusters (skipped): ${singleArticleCount}`);
     console.log(
-      `  - Multi-article clusters (inserted as stories): ${multiArticleClusters.length}`,
+      `  - Multi-article clusters inserted: ${multiArticleClusters.length}`,
     );
     console.log("=".repeat(72));
 
-    if (multiArticleClusters.length > 0) {
-      console.log("\n--- Multi-Article Clusters ---");
-      for (let i = 0; i < multiArticleClusters.length; i++) {
-        const cluster = multiArticleClusters[i];
-        console.log("\n" + "-".repeat(72));
-        console.log(
-          `Cluster ${i + 1} (size ${cluster.articles.length}): "${cluster.title}"`,
-        );
-        console.log("-".repeat(72));
-        for (const a of cluster.articles) {
-          console.log(`  [${a.source_name}] ${a.title}`);
-        }
-      }
-    }
-
-    console.log("\n" + "=".repeat(72));
-    console.log("✅ Done!");
-    console.log("=".repeat(72));
+    return {
+      totalClusters: clusters.length,
+      singleArticleClusters: singleArticleCount,
+      multiArticleClusters: multiArticleClusters.length,
+      newStoryIds: newStoryIds,
+    };
   } finally {
     await pool.end();
   }
+}
+
+async function main() {
+  return runCluster();
 }
 
 if (require.main === module) {
@@ -437,5 +384,4 @@ if (require.main === module) {
     process.exit(1);
   });
 }
-
-module.exports = { extractProperNounTokens, properNounOverlap };
+module.exports = { runCluster, extractProperNounTokens, properNounOverlap };
