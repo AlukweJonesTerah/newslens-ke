@@ -378,6 +378,22 @@ async function main() {
           [storyId, a.id],
         );
       }
+      // Trigger async summarization job for this story (detached child process)
+      try {
+        const spawn = require('child_process').spawn;
+        const nodeArgs = [
+          require('path').join(__dirname, 'summarize_stories.js'),
+          `--story=${storyId}`,
+        ];
+        const child = spawn(process.execPath, nodeArgs, {
+          detached: true,
+          stdio: 'ignore',
+          cwd: process.cwd(),
+        });
+        child.unref();
+      } catch (e) {
+        console.warn('Failed to spawn summarizer for story', storyId, e.message || e);
+      }
     }
 
     // 7: Log everything clearly!

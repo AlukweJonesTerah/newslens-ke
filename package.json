@@ -11,6 +11,7 @@
     "ingest": "node scripts/ingest.js",
     "embed": "node scripts/embed.js",
     "cluster": "node scripts/cluster.js",
+    "summarize:stories": "node scripts/summarize_stories.js",
     "test:entity": "node scripts/test_entity_overlap.js",
     "test": "npm run test:entity"
   },
