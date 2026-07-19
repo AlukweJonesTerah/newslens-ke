@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     const summarizeStart = Date.now();
     const summarizeResult = await runSummarize(
       supabase,
-      clusterResult.newStoryIds,
+      clusterResult.newStoryIds ?? [],
     );
     pipelineStats.summarize = {
       ...summarizeResult,
