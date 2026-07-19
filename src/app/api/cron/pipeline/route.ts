@@ -3,6 +3,16 @@ import { createClient } from "@supabase/supabase-js";
 
 export const maxDuration = 800; // ~13 minutes, leaving some buffer
 
+type PipelineStageResult = Record<string, any>;
+type IngestFn = (supabase: any) => Promise<PipelineStageResult>;
+type EmbedFn = (supabase: any, hardDeadline?: number | null) => Promise<PipelineStageResult>;
+type ClusterFn = (hardDeadline?: number | null) => Promise<PipelineStageResult>;
+type SummarizeFn = (
+  supabase: any,
+  storyIds?: string[] | null,
+  hardDeadline?: number | null,
+) => Promise<PipelineStageResult>;
+
 export async function POST(request: Request) {
   try {
     // Verify Authorization header
@@ -19,14 +29,19 @@ export async function POST(request: Request) {
     const hardDeadline = startTime + 750 * 1000; // 12.5 minutes, leaving 50s buffer
     const pipelineStats: any = {};
 
-    // Import the functions dynamically to avoid module loading issues
-    const [{ runIngest }, { runEmbed }, { runCluster }, { runSummarize }] =
-      await Promise.all([
-        import("../../../../../scripts/ingest.js"),
-        import("../../../../../scripts/embed.js"),
-        import("../../../../../scripts/cluster.js"),
-        import("../../../../../scripts/summarize_stories.js"),
-      ]);
+    // Import the functions dynamically to avoid module loading issues.
+    // Cast explicitly here since the underlying files are plain JS and
+    // TypeScript can't infer the hardDeadline parameter's real type from them.
+    const [ingestMod, embedMod, clusterMod, summarizeMod] = await Promise.all([
+      import("../../../../../scripts/ingest.js"),
+      import("../../../../../scripts/embed.js"),
+      import("../../../../../scripts/cluster.js"),
+      import("../../../../../scripts/summarize_stories.js"),
+    ]);
+    const runIngest = ingestMod.runIngest as IngestFn;
+    const runEmbed = embedMod.runEmbed as EmbedFn;
+    const runCluster = clusterMod.runCluster as ClusterFn;
+    const runSummarize = summarizeMod.runSummarize as SummarizeFn;
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -50,7 +65,7 @@ export async function POST(request: Request) {
     console.log("\n" + "=".repeat(72));
     console.log("🧠 Step 2: EMBED");
     const embedStart = Date.now();
-    let embedResult;
+    let embedResult: PipelineStageResult;
     if (Date.now() >= hardDeadline) {
       embedResult = { skipped: true, reason: "time_budget" };
     } else {
@@ -65,7 +80,7 @@ export async function POST(request: Request) {
     console.log("\n" + "=".repeat(72));
     console.log("📊 Step 3: CLUSTER");
     const clusterStart = Date.now();
-    let clusterResult;
+    let clusterResult: PipelineStageResult;
     if (Date.now() >= hardDeadline) {
       clusterResult = { skipped: true, reason: "time_budget" };
     } else {
@@ -80,13 +95,13 @@ export async function POST(request: Request) {
     console.log("\n" + "=".repeat(72));
     console.log("📰 Step 4: SUMMARIZE");
     const summarizeStart = Date.now();
-    let summarizeResult;
+    let summarizeResult: PipelineStageResult;
     if (Date.now() >= hardDeadline) {
       summarizeResult = { skipped: true, reason: "time_budget" };
     } else {
       summarizeResult = await runSummarize(
         supabase,
-        (clusterResult.newStoryIds ?? []) as any,
+        clusterResult.newStoryIds ?? [],
         hardDeadline,
       );
     }
