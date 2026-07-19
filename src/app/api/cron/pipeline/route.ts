@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -71,7 +70,7 @@ export async function POST(request: Request) {
     const summarizeStart = Date.now();
     const summarizeResult = await runSummarize(
       supabase,
-      clusterResult.newStoryIds ?? [],
+      (clusterResult.newStoryIds ?? []) as any, // TODO: replace with proper JSDoc typing on runSummarize in summarize_stories.js
     );
     pipelineStats.summarize = {
       ...summarizeResult,
