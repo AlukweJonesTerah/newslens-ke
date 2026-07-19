@@ -4,8 +4,7 @@
  */
 
 const { getSupabaseClient, sleep } = require("./lib.js");
-const { Readability } = require("@mozilla/readability");
-const { JSDOM } = require("jsdom");
+const { extract } = require("@extractus/article-extractor");
 const Parser = require("rss-parser");
 
 const USER_AGENT =
@@ -81,17 +80,10 @@ function normalizeUrl(rawUrl) {
 
 function stripHtml(html) {
   if (!html) return "";
-  try {
-    const dom = new JSDOM(`<body>${html}</body>`);
-    return (
-      dom.window.document.body.textContent?.replace(/\s+/g, " ").trim() || ""
-    );
-  } catch {
-    return html
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function getRssFallbackText(item) {
@@ -140,21 +132,24 @@ async function fetchHtml(url) {
   }
 }
 
-function extractWithReadability(html, url) {
-  const dom = new JSDOM(html, { url });
-  const reader = new Readability(dom.window.document);
-  const article = reader.parse();
+async function extractWithArticleExtractor(url) {
+  const article = await extract(url, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
 
-  if (!article?.textContent) return null;
+  if (!article?.content) return null;
 
-  const text = article.textContent.replace(/\s+/g, " ").trim();
+  // Convert the extracted content (HTML) to plain text by stripping tags
+  const text = stripHtml(article.content).replace(/\s+/g, " ").trim();
   return text.length > 0 ? text : null;
 }
 
 async function extractArticleText(url, item) {
   try {
-    const html = await fetchHtml(url);
-    const text = extractWithReadability(html, url);
+    const text = await extractWithArticleExtractor(url);
     if (text) {
       return { text, usedFallback: false };
     }
