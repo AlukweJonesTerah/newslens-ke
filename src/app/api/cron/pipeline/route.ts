@@ -2,11 +2,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const { runIngest } = require("../../../../../scripts/ingest.js");
-const { runEmbed } = require("../../../../../scripts/embed.js");
-const { runCluster } = require("../../../../../scripts/cluster.js");
-const { runSummarize } = require("../../../../../scripts/summarize_stories.js");
-
 export const maxDuration = 300; // 5 minutes
 
 export async function POST(request: Request) {
@@ -23,6 +18,15 @@ export async function POST(request: Request) {
     console.log("🚀 NewsLens KE — Automated Pipeline Starting");
     const startTime = Date.now();
     const pipelineStats: any = {};
+
+    // Import the functions dynamically to avoid module loading issues
+    const [{ runIngest }, { runEmbed }, { runCluster }, { runSummarize }] =
+      await Promise.all([
+        import("../../../../../scripts/ingest.js"),
+        import("../../../../../scripts/embed.js"),
+        import("../../../../../scripts/cluster.js"),
+        import("../../../../../scripts/summarize_stories.js"),
+      ]);
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -91,7 +95,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("❌ PIPELINE FAILED:", err);
     return NextResponse.json(
-      { success: false, error: (err as Error).message },
+      { success: false, error: (err as Error).message, stack: (err as Error).stack },
       { status: 500 },
     );
   }
