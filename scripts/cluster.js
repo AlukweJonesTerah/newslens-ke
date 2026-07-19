@@ -1,5 +1,12 @@
-require("dotenv").config({ path: ".env.local" });
-require("dotenv").config();
+// Only load dotenv for local CLI runs, not when imported into Next.js/Vercel
+if (require.main === module) {
+  try {
+    require("dotenv").config({ path: ".env.local" });
+    require("dotenv").config();
+  } catch (e) {
+    // Ignore in production
+  }
+}
 
 const { Pool } = require("pg");
 
