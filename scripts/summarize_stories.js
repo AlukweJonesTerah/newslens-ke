@@ -123,11 +123,16 @@ async function summarizeSingle(storyId, supabase, genAI) {
   console.log(`✅ Successfully summarized ${storyId}`);
 }
 
-async function runSummarize(supabase, storyIds = null) {
+async function runSummarize(supabase, storyIds = null, hardDeadline = null) {
   console.log("📰 NewsLens KE — Story Summarization");
   console.log("=".repeat(72));
   const genAI = getGenAIClient();
   let stories;
+
+  if (hardDeadline && Date.now() >= hardDeadline) {
+    console.log("Time budget exhausted, skipping summarization.");
+    return { skipped: true, reason: "time_budget" };
+  }
 
   if (storyIds && storyIds.length > 0) {
     const { data, error } = await supabase
@@ -149,9 +154,16 @@ async function runSummarize(supabase, storyIds = null) {
   console.log(`Found ${stories.length} stories`);
   let succeeded = 0,
     failed = 0,
-    stoppedEarly = false;
+    stoppedEarly = false,
+    stoppedEarlyReason = null;
 
   for (let i = 0; i < stories.length; i++) {
+    if (hardDeadline && Date.now() >= hardDeadline) {
+      console.log("\nTime budget exhausted, stopping summarization early.");
+      stoppedEarly = true;
+      stoppedEarlyReason = "time_budget";
+      break;
+    }
     const story = stories[i];
     for (let attempt = 1; attempt <= MAX_429_RETRIES + 1; attempt++) {
       try {
@@ -168,6 +180,7 @@ async function runSummarize(supabase, storyIds = null) {
           console.error(`Failed story ${story.id}: ${err.message}`);
           console.log("\nQuota exhausted, stopping early.");
           stoppedEarly = true;
+          stoppedEarlyReason = "quota";
           break;
         } else {
           failed++;
@@ -187,7 +200,7 @@ async function runSummarize(supabase, storyIds = null) {
   console.log("✅ SUMMARIZATION REPORT:");
   console.log(`  Succeeded: ${succeeded} | Failed: ${failed}`);
   console.log("=".repeat(72));
-  return { succeeded, failed, total: stories.length, stoppedEarly };
+  return { succeeded, failed, total: stories.length, stoppedEarly, stoppedEarlyReason };
 }
 
 async function main() {

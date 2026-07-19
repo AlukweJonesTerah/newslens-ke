@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const maxDuration = 300; // 5 minutes
+export const maxDuration = 800; // ~13 minutes, leaving some buffer
 
 export async function POST(request: Request) {
   try {
@@ -16,6 +16,7 @@ export async function POST(request: Request) {
 
     console.log("🚀 NewsLens KE — Automated Pipeline Starting");
     const startTime = Date.now();
+    const hardDeadline = startTime + 750 * 1000; // 12.5 minutes, leaving 50s buffer
     const pipelineStats: any = {};
 
     // Import the functions dynamically to avoid module loading issues
@@ -42,13 +43,19 @@ export async function POST(request: Request) {
     pipelineStats.ingest = {
       ...ingestResult,
       durationMs: Date.now() - ingestStart,
+      skipped: false,
     };
 
     // 2. Run Embed
     console.log("\n" + "=".repeat(72));
     console.log("🧠 Step 2: EMBED");
     const embedStart = Date.now();
-    const embedResult = await runEmbed(supabase);
+    let embedResult;
+    if (Date.now() >= hardDeadline) {
+      embedResult = { skipped: true, reason: "time_budget" };
+    } else {
+      embedResult = await runEmbed(supabase, hardDeadline);
+    }
     pipelineStats.embed = {
       ...embedResult,
       durationMs: Date.now() - embedStart,
@@ -58,7 +65,12 @@ export async function POST(request: Request) {
     console.log("\n" + "=".repeat(72));
     console.log("📊 Step 3: CLUSTER");
     const clusterStart = Date.now();
-    const clusterResult = await runCluster();
+    let clusterResult;
+    if (Date.now() >= hardDeadline) {
+      clusterResult = { skipped: true, reason: "time_budget" };
+    } else {
+      clusterResult = await runCluster(hardDeadline);
+    }
     pipelineStats.cluster = {
       ...clusterResult,
       durationMs: Date.now() - clusterStart,
@@ -68,10 +80,16 @@ export async function POST(request: Request) {
     console.log("\n" + "=".repeat(72));
     console.log("📰 Step 4: SUMMARIZE");
     const summarizeStart = Date.now();
-    const summarizeResult = await runSummarize(
-      supabase,
-      (clusterResult.newStoryIds ?? []) as any, // TODO: replace with proper JSDoc typing on runSummarize in summarize_stories.js
-    );
+    let summarizeResult;
+    if (Date.now() >= hardDeadline) {
+      summarizeResult = { skipped: true, reason: "time_budget" };
+    } else {
+      summarizeResult = await runSummarize(
+        supabase,
+        (clusterResult.newStoryIds ?? []) as any,
+        hardDeadline,
+      );
+    }
     pipelineStats.summarize = {
       ...summarizeResult,
       durationMs: Date.now() - summarizeStart,

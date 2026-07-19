@@ -134,13 +134,18 @@ function properNounOverlap(titleA, titleB) {
 }
 
 // Main function
-async function runCluster() {
+async function runCluster(hardDeadline = null) {
   console.log("🔗 NewsLens KE — Story Clustering");
   console.log("=".repeat(72));
   console.log(
     `Config: Cluster window = ${CLUSTER_WINDOW_HOURS}h, similarity threshold = ${SIMILARITY_THRESHOLD}`,
   );
   console.log("=".repeat(72));
+
+  if (hardDeadline && Date.now() >= hardDeadline) {
+    console.log("Time budget exhausted, skipping clustering.");
+    return { skipped: true, reason: "time_budget" };
+  }
 
   // Database connection (using DATABASE_URL from .env.local)
   const pool = new Pool({

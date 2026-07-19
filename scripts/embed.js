@@ -23,7 +23,7 @@ function getGenAIClient() {
   return new GoogleGenAI({ apiKey });
 }
 
-async function runEmbed(supabase) {
+async function runEmbed(supabase, hardDeadline = null) {
   console.log("🔌 NewsLens KE — Embedding");
   console.log("=".repeat(72));
   const genAI = getGenAIClient();
@@ -41,6 +41,13 @@ async function runEmbed(supabase) {
   let failed = 0;
 
   for (let i = 0; i < articles.length; i++) {
+    if (hardDeadline && Date.now() >= hardDeadline) {
+      console.log("\n" + "=".repeat(72));
+      console.log("Time budget exhausted, stopping embedding early.");
+      console.log(`Embedded so far: ${embedded} | Failed: ${failed}`);
+      console.log("=".repeat(72));
+      return { embedded, failed, total, stoppedEarly: true, reason: "time_budget" };
+    }
     const article = articles[i];
     let success = false;
 
@@ -85,7 +92,7 @@ async function runEmbed(supabase) {
           console.log("Quota exhausted, stopping embedding early.");
           console.log(`Embedded so far: ${embedded} | Failed: ${failed}`);
           console.log("=".repeat(72));
-          return { embedded, failed, total, stoppedEarly: true };
+          return { embedded, failed, total, stoppedEarly: true, reason: "quota" };
         } else {
           failed++;
           console.error(`Failed to embed article ${article.id}: ${err.message}`);
@@ -107,7 +114,7 @@ async function runEmbed(supabase) {
   console.log(`Total embedded: ${embedded}`);
   console.log(`Total failed: ${failed}`);
   console.log("=".repeat(72));
-  return { embedded, failed, total };
+  return { embedded, failed, total, stoppedEarly: false };
 }
 
 async function main() {
