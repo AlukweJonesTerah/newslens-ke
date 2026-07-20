@@ -58,9 +58,40 @@ interface Story {
 
 type CoverageCounts = Record<string, number>;
 
+interface PipelineStats {
+  sourcesCount: number;
+  storiesCount: number;
+  articlesCount: number;
+  lastUpdated: string | null;
+}
+
 interface HomeClientProps {
   stories: Story[];
   coverageCounts: CoverageCounts;
+  pipelineStats: PipelineStats;
+}
+
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return "Updated just now";
+  }
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `Updated ${diffInMinutes} minute${diffInMinutes === 1 ? "" : "s"} ago`;
+  }
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `Updated ${diffInHours} hour${diffInHours === 1 ? "" : "s"} ago`;
+  }
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `Updated ${diffInDays} day${diffInDays === 1 ? "" : "s"} ago`;
+  }
+  return `Updated on ${date.toLocaleDateString()}`;
 }
 
 const trendingData = [
@@ -114,6 +145,7 @@ function getCategoryColor(category: CoverageCategory | string) {
 export default function HomeClient({
   stories,
   coverageCounts,
+  pipelineStats,
 }: HomeClientProps) {
   const leadStory = stories[0];
   const otherTopStories = stories.slice(1, 4);
@@ -267,50 +299,50 @@ export default function HomeClient({
                 </div>
               </div>
 
-              {/* From multiple sources (col 6-12 on md) */}
+              {/* Live Pipeline Stats (col 6-12 on md) */}
               <div className="md:col-span-7">
                 <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        From Multiple Sources
-                      </h2>
+                  <div className="text-xs uppercase tracking-wide text-gray-400 mb-4">
+                    Live Pipeline
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {pipelineStats.sourcesCount}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        Sources tracked
+                      </div>
                     </div>
-                    <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700">
-                      <Info className="w-4 h-4" />
-                      How it works
-                    </button>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {pipelineStats.storiesCount}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        Stories identified
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {pipelineStats.articlesCount}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        Articles processed
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {pipelineStats.lastUpdated
+                          ? formatRelativeTime(
+                              pipelineStats.lastUpdated,
+                            ).replace("Updated ", "")
+                          : "—"}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        Last updated
+                      </div>
+                    </div>
                   </div>
-
-                  {/* Tabs */}
-                  <div className="flex items-center gap-6 mb-6 border-b border-gray-100 pb-2">
-                    {[
-                      "All Perspectives",
-                      "What They Agree On",
-                      "Where They Differ",
-                      "Timeline",
-                    ].map((tab, idx) => (
-                      <button
-                        key={tab}
-                        className={cn(
-                          "text-sm font-medium pb-2 border-b-2 transition",
-                          idx === 0
-                            ? "text-[#1a4d7a] border-[#1a4d7a]"
-                            : "text-gray-500 border-transparent hover:text-gray-700",
-                        )}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-
-                  <Link
-                    href="/stories"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                  >
-                    View all sources
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
                 </div>
               </div>
             </div>

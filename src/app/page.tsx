@@ -27,6 +27,13 @@ interface Story {
 
 type CoverageCounts = Record<string, number>;
 
+interface PipelineStats {
+  sourcesCount: number;
+  storiesCount: number;
+  articlesCount: number;
+  lastUpdated: string | null;
+}
+
 async function getStories() {
   const { data, error } = await supabase
     .from("stories")
@@ -124,8 +131,62 @@ async function getCoverageCounts() {
   return counts;
 }
 
+async function getPipelineStats(): Promise<PipelineStats> {
+  // Count sources
+  const { count: sourcesCount, error: sourcesError } = await supabase
+    .from("sources")
+    .select("*", { count: "exact", head: true });
+  if (sourcesError) throw new Error(sourcesError.message);
+
+  // Count stories
+  const { count: storiesCount, error: storiesError } = await supabase
+    .from("stories")
+    .select("*", { count: "exact", head: true });
+  if (storiesError) throw new Error(storiesError.message);
+
+  // Count articles
+  const { count: articlesCount, error: articlesError } = await supabase
+    .from("articles")
+    .select("*", { count: "exact", head: true });
+  if (articlesError) throw new Error(articlesError.message);
+
+  // Get last updated (max fetched_at from articles, if exists, else max updated_at from stories)
+  const { data: lastArticleData, error: lastArticleError } = await supabase
+    .from("articles")
+    .select("fetched_at")
+    .order("fetched_at", { ascending: false })
+    .limit(1);
+  let lastUpdated: string | null = null;
+  if (!lastArticleError && lastArticleData?.[0]?.fetched_at) {
+    lastUpdated = lastArticleData[0].fetched_at;
+  } else {
+    const { data: lastStoryData, error: lastStoryError } = await supabase
+      .from("stories")
+      .select("updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    if (!lastStoryError && lastStoryData?.[0]?.updated_at) {
+      lastUpdated = lastStoryData[0].updated_at;
+    }
+  }
+
+  return {
+    sourcesCount: sourcesCount || 0,
+    storiesCount: storiesCount || 0,
+    articlesCount: articlesCount || 0,
+    lastUpdated,
+  };
+}
+
 export default async function Home() {
   const stories = await getStories();
   const coverageCounts = await getCoverageCounts();
-  return <HomeClient stories={stories} coverageCounts={coverageCounts} />;
+  const pipelineStats = await getPipelineStats();
+  return (
+    <HomeClient
+      stories={stories}
+      coverageCounts={coverageCounts}
+      pipelineStats={pipelineStats}
+    />
+  );
 }

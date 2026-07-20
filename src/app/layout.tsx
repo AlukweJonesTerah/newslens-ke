@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Newsreader } from "next/font/google";
 import "./globals.css";
 import HeaderClient from "./HeaderClient";
+import { Suspense } from "react";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -35,7 +36,13 @@ export default function RootLayout({
       className={`${inter.variable} ${newsreader.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-gray-50">
-        <Header />
+        <Suspense
+          fallback={
+            <div className="h-24 bg-white border-b border-gray-200"></div>
+          }
+        >
+          <Header />
+        </Suspense>
         {children}
       </body>
     </html>
