@@ -23,6 +23,15 @@ interface Story {
   updated_at: string;
   story_articles: { article_id: string }[] | null;
   sources: StorySource[];
+  consensus_claims?: { claim: string; sources: string[] }[] | null;
+}
+
+interface CorroboratedClaim {
+  claim: string;
+  sources: string[];
+  storyId: string;
+  storyTitle: string;
+  storyUpdatedAt: string;
 }
 
 type CoverageCounts = Record<string, number>;
@@ -38,7 +47,7 @@ async function getStories() {
   const { data, error } = await supabase
     .from("stories")
     .select(
-      "id,title,neutral_summary,coverage_category,summary_updated_at,updated_at,story_articles(article_id,articles(id,source_id))",
+      "id,title,neutral_summary,coverage_category,summary_updated_at,updated_at,consensus_claims,story_articles(article_id,articles(id,source_id))",
     )
     .limit(50);
 
@@ -178,15 +187,49 @@ async function getPipelineStats(): Promise<PipelineStats> {
   };
 }
 
+async function getCorroboratedClaims(
+  stories: Story[],
+): Promise<CorroboratedClaim[]> {
+  const allClaims: CorroboratedClaim[] = [];
+
+  for (const story of stories) {
+    if (story.consensus_claims && story.consensus_claims.length > 0) {
+      for (const claim of story.consensus_claims) {
+        if (claim.sources.length >= 2) {
+          allClaims.push({
+            claim: claim.claim,
+            sources: claim.sources,
+            storyId: story.id,
+            storyTitle: story.title,
+            storyUpdatedAt: story.summary_updated_at || story.updated_at,
+          });
+        }
+      }
+    }
+  }
+
+  // Sort by most recent
+  allClaims.sort(
+    (a, b) =>
+      new Date(b.storyUpdatedAt).getTime() -
+      new Date(a.storyUpdatedAt).getTime(),
+  );
+
+  // Take top 5-6
+  return allClaims.slice(0, 6);
+}
+
 export default async function Home() {
   const stories = await getStories();
   const coverageCounts = await getCoverageCounts();
   const pipelineStats = await getPipelineStats();
+  const corroboratedClaims = await getCorroboratedClaims(stories);
   return (
     <HomeClient
       stories={stories}
       coverageCounts={coverageCounts}
       pipelineStats={pipelineStats}
+      corroboratedClaims={corroboratedClaims}
     />
   );
 }

@@ -54,6 +54,15 @@ interface Story {
   updated_at: string;
   story_articles: { article_id: string }[] | null;
   sources: StorySource[];
+  consensus_claims?: { claim: string; sources: string[] }[] | null;
+}
+
+interface CorroboratedClaim {
+  claim: string;
+  sources: string[];
+  storyId: string;
+  storyTitle: string;
+  storyUpdatedAt: string;
 }
 
 type CoverageCounts = Record<string, number>;
@@ -69,6 +78,7 @@ interface HomeClientProps {
   stories: Story[];
   coverageCounts: CoverageCounts;
   pipelineStats: PipelineStats;
+  corroboratedClaims: CorroboratedClaim[];
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -146,6 +156,7 @@ export default function HomeClient({
   stories,
   coverageCounts,
   pipelineStats,
+  corroboratedClaims,
 }: HomeClientProps) {
   const leadStory = stories[0];
   const otherTopStories = stories.slice(1, 4);
@@ -299,8 +310,8 @@ export default function HomeClient({
                 </div>
               </div>
 
-              {/* Live Pipeline Stats (col 6-12 on md) */}
-              <div className="md:col-span-7">
+              {/* Live Pipeline Stats, Recently Corroborated (col 6-12 on md) */}
+              <div className="md:col-span-7 space-y-6">
                 <div className="bg-white border border-gray-200 rounded-2xl p-6">
                   <div className="text-xs uppercase tracking-wide text-gray-400 mb-4">
                     Live Pipeline
@@ -344,6 +355,37 @@ export default function HomeClient({
                     </div>
                   </div>
                 </div>
+
+                {/* Recently Corroborated Claims */}
+                {corroboratedClaims.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                    <div className="text-xs uppercase tracking-wide text-gray-400 mb-4">
+                      Recently Corroborated
+                    </div>
+                    <div className="space-y-4">
+                      {corroboratedClaims.map((claimItem, index) => (
+                        <Link
+                          key={index}
+                          href={`/stories/${claimItem.storyId}`}
+                          className="block hover:bg-gray-50 -mx-2 px-2 py-2 rounded-lg transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-800 mb-1 leading-relaxed">
+                                {claimItem.claim}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Reported by {claimItem.sources.length} source
+                                {claimItem.sources.length !== 1 ? "s" : ""}
+                              </p>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
