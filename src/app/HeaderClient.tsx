@@ -5,9 +5,6 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   Search,
-  Bookmark,
-  Bell,
-  User,
   Home,
   Users,
   Briefcase,
@@ -35,6 +32,25 @@ const navItems = [
   { label: "Sources", href: "/sources", icon: Newspaper },
 ];
 
+function SiteLogo() {
+  const [broken, setBroken] = useState(false);
+  if (broken) {
+    return (
+      <span className="text-2xl font-serif font-semibold tracking-tight text-[#0f172a]">
+        NewsLens <span className="text-red-600">KE</span>
+      </span>
+    );
+  }
+  return (
+    <img
+      src="/logos/newslenske.png"
+      alt="NewsLens KE"
+      className="h-16 w-auto object-contain"
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
 export default function HeaderClient() {
   const router = useRouter();
   const pathname = usePathname();
@@ -60,15 +76,15 @@ export default function HeaderClient() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
+      {/* Brand accent stripe */}
+      <div className="h-1 bg-red-600" />
       {/* Top bar */}
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-6">
           {/* Logo & tagline */}
           <div className="flex-shrink-0">
             <Link href="/" className="flex flex-col">
-              <span className="text-2xl font-serif font-semibold tracking-tight text-[#0f172a]">
-                NewsLens <span className="text-[#1a4d7a]">KE</span>
-              </span>
+              <SiteLogo />
               <span className="text-xs text-gray-500 mt-0.5">
                 Understand every story. Beyond the headlines.
               </span>
@@ -89,21 +105,7 @@ export default function HeaderClient() {
             </form>
           </div>
 
-          {/* User actions */}
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition">
-              <Bookmark className="w-4 h-4" />
-              <span className="hidden sm:inline">Saved</span>
-            </button>
-            <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition relative">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] text-white text-sm font-medium rounded-lg hover:bg-[#1e293b] transition">
-              <User className="w-4 h-4" />
-              <span>Sign In</span>
-            </button>
-          </div>
+
         </div>
       </div>
 

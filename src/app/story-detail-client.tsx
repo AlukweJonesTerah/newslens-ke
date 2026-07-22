@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, Sparkles, Info, CheckCircle2, AlertCircle } from "lucide-react";
+import { Eye, Info, CheckCircle2, AlertCircle } from "lucide-react";
 
 type CoverageCategory =
   | "government_focused"
@@ -71,6 +71,17 @@ function formatPublishedAt(dateStr: string | null): string {
     return `${absolute} · ${Math.floor(diffHours / 24)}d ago`;
   }
   return absolute;
+}
+
+function getCategoryColor(category: CoverageCategory | string): string {
+  switch (category) {
+    case "government_focused":   return "#c85a54";
+    case "opposition_focused":   return "#6b9080";
+    case "public_focused":       return "#e7c15b";
+    case "business_focused":     return "#7a87c5";
+    case "international_focused":return "#a87ca0";
+    default:                     return "#6b7280";
+  }
 }
 
 function getCategoryLabel(category: CoverageCategory | string): string {
@@ -167,8 +178,11 @@ export default function StoryDetailClient({
                 <div className="p-6 md:p-8 flex flex-col justify-between">
                   <div className="flex items-center gap-3 mb-4">
                     {story.coverage_category && (
-                      <span className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold uppercase tracking-wide rounded-full">
-                        Coverage
+                      <span
+                        className="px-3 py-1 text-white text-xs font-semibold uppercase tracking-wide rounded-full"
+                        style={{ backgroundColor: getCategoryColor(story.coverage_category) }}
+                      >
+                        {getCategoryLabel(story.coverage_category)}
                       </span>
                     )}
                     <span className="flex items-center gap-1 text-xs text-gray-500">
@@ -193,12 +207,7 @@ export default function StoryDetailClient({
                       {articles.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
-                      <Sparkles className="w-4 h-4" />
-                      AI Summary
-                    </button>
-                  </div>
+
                 </div>
                 {/* Right: sources */}
                 <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 p-6 md:p-8 min-h-[300px] flex flex-col">

@@ -324,10 +324,7 @@ export default async function StoriesPage({
                             View Full Coverage
                             <ArrowRight className="w-4 h-4" />
                           </Link>
-                          <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
-                            <Sparkles className="w-4 h-4" />
-                            AI Summary
-                          </button>
+
                         </div>
                       </div>
                       {/* Right: sources */}
