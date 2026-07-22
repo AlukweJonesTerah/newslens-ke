@@ -29,23 +29,24 @@ const navItems = [
   },
   { label: "Public", href: "/stories?category=public", icon: Users },
   { label: "Business", href: "/stories?category=business", icon: Briefcase },
-  { label: "Sources", href: "/sources", icon: Newspaper },
 ];
 
 function SiteLogo() {
   const [broken, setBroken] = useState(false);
+
   if (broken) {
     return (
-      <span className="text-2xl font-serif font-semibold tracking-tight text-[#0f172a]">
-        NewsLens <span className="text-red-600">KE</span>
+      <span className="text-xl sm:text-2xl font-serif font-semibold tracking-tight text-slate-900 whitespace-nowrap">
+        NewsLens <span className="text-red-700">KE</span>
       </span>
     );
   }
+
   return (
     <img
       src="/logos/newslenske.png"
       alt="NewsLens KE"
-      className="h-16 w-auto object-contain"
+      className="h-12 sm:h-16 w-auto object-contain"
       onError={() => setBroken(true)}
     />
   );
@@ -55,80 +56,121 @@ export default function HeaderClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
   const currentCategory = searchParams.get("category");
+
   const [searchInput, setSearchInput] = useState("");
 
-  // Pre-fill search input when on /search page
   useEffect(() => {
     if (pathname === "/search") {
-      const q = searchParams.get("q") || "";
-      setSearchInput(q);
+      setSearchInput(searchParams.get("q") || "");
     }
   }, [pathname, searchParams]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
     const trimmed = searchInput.trim();
+
     if (trimmed) {
       router.push(`/search?q=${encodeURIComponent(trimmed)}`);
     }
   };
 
+  const isSourcesActive =
+    pathname === "/sources" || pathname.startsWith("/sources/");
+
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-      {/* Brand accent stripe */}
-      <div className="h-1 bg-red-600" />
-      {/* Top bar */}
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200">
+      {/* Top */}
       <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between gap-6">
-          {/* Logo & tagline */}
-          <div className="flex-shrink-0">
+        <div className="flex flex-col gap-3 md:grid md:grid-cols-[auto_1fr_auto] md:items-center md:gap-6">
+
+          <div className="flex items-center justify-between md:justify-start">
             <Link href="/" className="flex flex-col">
+
               <SiteLogo />
-              <span className="text-xs text-gray-500 mt-0.5">
+
+              <span className="hidden sm:block text-xs text-slate-500 mt-0.5">
                 Understand every story. Beyond the headlines.
               </span>
+
+            </Link>
+
+            <Link
+              href="/sources"
+              className={cn(
+                "md:hidden flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all",
+
+                isSourcesActive
+                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <Newspaper className="w-4 h-4" />
+              Sources
             </Link>
           </div>
 
           {/* Search */}
-          <div className="flex-1 max-w-xl">
+
+          <div className="w-full md:max-w-xl md:mx-auto">
             <form onSubmit={handleSearchSubmit} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+
               <input
                 type="text"
-                placeholder="Search for stories, topics, or sources..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1a4d7a]/20 focus:border-[#1a4d7a] text-sm"
+                placeholder="Search for stories, topics, or sources..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition"
               />
             </form>
           </div>
 
+          {/* Desktop Sources */}
 
+          <div className="hidden md:flex justify-end">
+
+            <Link
+              href="/sources"
+              className={cn(
+                "flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all",
+
+                isSourcesActive
+                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <Newspaper className="h-4 w-4" />
+              Sources
+            </Link>
+
+          </div>
         </div>
       </div>
 
-      {/* Nav bar */}
-      <div className="border-t border-gray-100">
+      {/* Navigation */}
+
+      <div className="border-t border-slate-100 bg-white">
         <div className="max-w-7xl mx-auto px-4">
-          <nav className="flex items-center gap-1 overflow-x-auto py-2">
+
+          <nav className="flex items-center gap-2 overflow-x-auto py-3">
+
             {navItems.map((item) => {
               const Icon = item.icon;
+
               let isActive = false;
 
               if (item.href === "/") {
                 isActive = pathname === "/";
-              } else if (!item.href.includes("?")) {
-                // Exact path match (e.g. /sources)
-                isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               } else {
-                const itemParams = new URLSearchParams(
-                  item.href.split("?")[1] || "",
-                );
-                const itemCategory = itemParams.get("category");
+                const params = new URLSearchParams(item.href.split("?")[1] || "");
+
                 isActive =
-                  pathname === "/stories" && itemCategory === currentCategory;
+                  pathname === "/stories" &&
+                  params.get("category") === currentCategory;
               }
 
               return (
@@ -136,18 +178,21 @@ export default function HeaderClient() {
                   key={item.label}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition",
+                    "flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all",
+
                     isActive
-                      ? "bg-[#1a4d7a] text-white"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                      ? "border-blue-200 bg-blue-50 text-blue-700"
+                      : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900"
                   )}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="h-4 w-4" />
                   {item.label}
                 </Link>
               );
             })}
+
           </nav>
+
         </div>
       </div>
     </header>
