@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Eye,
-  Sparkles,
-  Info,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
+import { Eye, Sparkles, Info, CheckCircle2, AlertCircle } from "lucide-react";
 
 type CoverageCategory =
   | "government_focused"
@@ -17,6 +11,11 @@ type CoverageCategory =
   | "business_focused"
   | "international_focused"
   | null;
+
+interface StorySource {
+  id: string;
+  name: string;
+}
 
 interface Story {
   id: string;
@@ -36,14 +35,87 @@ interface Article {
   raw_text: string | null;
   published_at: string | null;
   source_name: string;
+  embedding: number[] | null;
+}
+
+interface RelatedStory {
+  id: string;
+  title: string;
+  coverage_category: CoverageCategory;
+  article_count: number;
+}
+
+function formatPublishedAt(dateStr: string | null): string {
+  if (!dateStr) return "Unknown time";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+
+  const absolute = date.toLocaleString("en-KE", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  if (diffHours < 1) {
+    const mins = Math.floor(diffMs / (1000 * 60));
+    return `${absolute} · ${mins}m ago`;
+  }
+  if (diffHours < 24) {
+    return `${absolute} · ${Math.floor(diffHours)}h ago`;
+  }
+  if (diffHours < 24 * 7) {
+    return `${absolute} · ${Math.floor(diffHours / 24)}d ago`;
+  }
+  return absolute;
+}
+
+function getCategoryLabel(category: CoverageCategory | string): string {
+  switch (category) {
+    case "government_focused":
+      return "Government";
+    case "opposition_focused":
+      return "Opposition";
+    case "public_focused":
+      return "Public";
+    case "business_focused":
+      return "Business";
+    case "international_focused":
+      return "International";
+    case "pending":
+      return "Pending";
+    default:
+      return "News";
+  }
+}
+
+const SOURCE_LOGOS: { match: string; path: string }[] = [
+  { match: "businessdaily", path: "/logos/businessdaily.png" },
+  { match: "peopledaily",   path: "/logos/peopledaily.png"   },
+  { match: "nation",       path: "/logos/nation.png"        },
+  { match: "standard",     path: "/logos/standard.png"      },
+  { match: "kenyans",      path: "/logos/kenyans.png"       },
+  { match: "tuko",         path: "/logos/tuko.png"          },
+];
+
+function getSourceLogoPath(sourceName: string): string | null {
+  const n = sourceName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return SOURCE_LOGOS.find((e) => n.includes(e.match))?.path ?? null;
 }
 
 export default function StoryDetailClient({
   story,
   articles,
+  sources,
+  relatedStories,
 }: {
   story: Story;
   articles: Article[];
+  sources: StorySource[];
+  relatedStories: RelatedStory[];
 }) {
   const [activeTab, setActiveTab] = useState("all");
   const sourceNames = [...new Set(articles.map((a) => a.source_name))];
@@ -52,6 +124,17 @@ export default function StoryDetailClient({
     story.consensus_claims?.filter((c) => c.sources.length >= 2) ?? [];
   const singleSourceClaims =
     story.consensus_claims?.filter((c) => c.sources.length === 1) ?? [];
+
+  const timelineArticles = [
+    ...articles
+      .filter((a) => a.published_at !== null)
+      .sort(
+        (a, b) =>
+          new Date(a.published_at!).getTime() -
+          new Date(b.published_at!).getTime(),
+      ),
+    ...articles.filter((a) => a.published_at === null),
+  ];
 
   return (
     <main className="flex-1">
@@ -117,9 +200,41 @@ export default function StoryDetailClient({
                     </button>
                   </div>
                 </div>
-                {/* Right: placeholder image */}
-                <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center min-h-[300px]">
-                  <span className="text-gray-400 text-sm">Image Placeholder</span>
+                {/* Right: sources */}
+                <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 p-6 md:p-8 min-h-[300px] flex flex-col">
+                  <span className="text-xs uppercase tracking-wide text-gray-400 mb-4">
+                    Covered by
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {sources.map((source) => {
+                      const logoPath = getSourceLogoPath(source.name);
+                      return (
+                        <Link
+                          key={source.id}
+                          href={`/sources/${source.id}`}
+                          className="flex items-center gap-3 px-5 py-3 bg-white border border-gray-200 text-sm font-bold text-gray-900 rounded-full hover:border-[#1a4d7a] hover:text-[#1a4d7a] transition"
+                        >
+                          {logoPath ? (
+                            <img
+                              src={logoPath}
+                              alt={`${source.name} logo`}
+                              className="w-8 h-8 object-contain"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-base text-gray-500 font-bold">
+                              {source.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span>{source.name}</span>
+                        </Link>
+                      );
+                    })}
+                    {sources.length === 0 && (
+                      <span className="text-xs text-gray-400">
+                        No sources yet
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
@@ -127,7 +242,9 @@ export default function StoryDetailClient({
             {/* Tabs section */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">From Multiple Sources</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  From Multiple Sources
+                </h2>
                 <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700">
                   <Info className="w-4 h-4" />
                   How it works
@@ -166,9 +283,7 @@ export default function StoryDetailClient({
                 >
                   Single-Source Claims
                 </button>
-                <button className="text-sm font-medium pb-2 border-b-2 border-transparent text-gray-400 cursor-not-allowed">
-                  Timeline (Coming Soon)
-                </button>
+
               </div>
 
               {/* Tab content */}
@@ -177,7 +292,7 @@ export default function StoryDetailClient({
                   <>
                     {sourceNames.map((sourceName) => {
                       const sourceArticles = articles.filter(
-                        (a) => a.source_name === sourceName
+                        (a) => a.source_name === sourceName,
                       );
                       const sourceNote = story.per_source?.[sourceName];
                       return (
@@ -186,10 +301,21 @@ export default function StoryDetailClient({
                           className="p-5 border border-gray-100 rounded-xl hover:border-gray-200 transition-all"
                         >
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-semibold">
-                              {sourceName.charAt(0).toUpperCase()}
-                            </div>
-                            <h3 className="text-sm font-semibold text-gray-900">{sourceName}</h3>
+                            {(() => {
+                              const logo = getSourceLogoPath(sourceName);
+                              return logo ? (
+                                <div className="w-9 h-9 rounded-lg bg-white border border-gray-100 shrink-0 flex items-center justify-center p-0.5 overflow-hidden">
+                                  <img src={logo} alt={sourceName} className="w-full h-full object-contain" />
+                                </div>
+                              ) : (
+                                <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                                  {sourceName.charAt(0).toUpperCase()}
+                                </div>
+                              );
+                            })()}
+                            <h3 className="text-sm font-semibold text-gray-900">
+                              {sourceName}
+                            </h3>
                           </div>
                           <p className="text-xs text-gray-500 mb-2">
                             {sourceArticles.length} article
@@ -238,11 +364,22 @@ export default function StoryDetailClient({
                               <p className="text-sm text-gray-800 mb-2 leading-relaxed">
                                 {claim.claim}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                Reported by {claim.sources.length} source
-                                {claim.sources.length !== 1 ? "s" : ""}:{" "}
-                                {claim.sources.join(", ")}
-                              </p>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {claim.sources.map((src) => {
+                                  const logo = getSourceLogoPath(src);
+                                  return (
+                                    <span
+                                      key={src}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full text-xs text-gray-600"
+                                    >
+                                      {logo && (
+                                        <img src={logo} alt={src} className="w-3.5 h-3.5 object-contain" />
+                                      )}
+                                      {src}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -269,9 +406,20 @@ export default function StoryDetailClient({
                               <p className="text-sm text-gray-800 mb-2 leading-relaxed">
                                 {claim.claim}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                Only reported by: {claim.sources[0]}
-                              </p>
+                              <div className="mt-1">
+                                {(() => {
+                                  const src = claim.sources[0];
+                                  const logo = getSourceLogoPath(src);
+                                  return (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full text-xs text-gray-600">
+                                      {logo && (
+                                        <img src={logo} alt={src} className="w-3.5 h-3.5 object-contain" />
+                                      )}
+                                      {src}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -281,6 +429,7 @@ export default function StoryDetailClient({
                 )}
               </div>
             </div>
+
           </div>
 
           {/* Sidebar (col 10-12 on lg) */}
@@ -317,6 +466,82 @@ export default function StoryDetailClient({
                 </div>
               </div>
             </section>
+
+            {/* Related Stories */}
+            {relatedStories.length > 0 && (
+              <section className="bg-white border border-gray-200 rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
+                  Related Stories
+                </h2>
+                <div className="space-y-3">
+                  {relatedStories.map((related) => (
+                    <Link
+                      key={related.id}
+                      href={`/stories/${related.id}`}
+                      className="block p-3 border border-gray-100 rounded-xl hover:border-gray-300 hover:shadow-sm transition"
+                    >
+                      <span className="text-xs text-[#1a4d7a] font-semibold uppercase tracking-wider mb-1 block">
+                        {getCategoryLabel(related.coverage_category)}
+                      </span>
+                      <p className="text-sm font-medium text-gray-900 leading-snug mb-1">
+                        {related.title}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {related.article_count} articles
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Timeline */}
+            {timelineArticles.length > 0 && (
+              <section className="bg-white border border-gray-200 rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
+                  Timeline
+                </h2>
+                <ol>
+                  {timelineArticles.map((article, index) => {
+                    const isFirst = index === 0;
+                    return (
+                      <li key={article.id} className="flex gap-3">
+                        {/* Spine */}
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={`w-2 h-2 rounded-full mt-1 shrink-0 ${
+                              isFirst ? "bg-[#1a4d7a]" : "bg-gray-300"
+                            }`}
+                          />
+                          {index < timelineArticles.length - 1 && (
+                            <div className="w-px flex-1 bg-gray-200 my-1" />
+                          )}
+                        </div>
+                        {/* Content */}
+                        <div className="pb-4 min-w-0">
+                          {isFirst && (
+                            <p className="text-xs font-semibold text-[#1a4d7a] uppercase tracking-wider mb-0.5">
+                              First reported
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500 mb-0.5">
+                            {article.source_name} · {formatPublishedAt(article.published_at)}
+                          </p>
+                          <a
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-gray-900 hover:text-[#1a4d7a] hover:underline leading-snug block"
+                          >
+                            {article.title}
+                          </a>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            )}
 
             {/* Other top stories (placeholder) */}
             <section className="bg-white border border-gray-200 rounded-2xl p-5">

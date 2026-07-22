@@ -11,6 +11,7 @@ import {
   Home,
   Users,
   Briefcase,
+  Newspaper,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -31,6 +32,7 @@ const navItems = [
   },
   { label: "Public", href: "/stories?category=public", icon: Users },
   { label: "Business", href: "/stories?category=business", icon: Briefcase },
+  { label: "Sources", href: "/sources", icon: Newspaper },
 ];
 
 export default function HeaderClient() {
@@ -115,6 +117,9 @@ export default function HeaderClient() {
 
               if (item.href === "/") {
                 isActive = pathname === "/";
+              } else if (!item.href.includes("?")) {
+                // Exact path match (e.g. /sources)
+                isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               } else {
                 const itemParams = new URLSearchParams(
                   item.href.split("?")[1] || "",
