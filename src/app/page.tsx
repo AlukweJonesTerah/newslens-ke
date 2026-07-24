@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import HomeClient from "./home-client";
 
+export const revalidate = 300; // Revalidate every 5 minutes so pipeline updates show up without a redeploy
+
 type CoverageCategory =
   | "government_focused"
   | "opposition_focused"
