@@ -45,6 +45,12 @@ interface PipelineStats {
   lastUpdated: string | null;
 }
 
+// Gravity constant for recency-weighted scoring
+// Higher values (e.g. 1.8) decay faster and favor recency more strongly
+// Lower values (e.g. 1.2) let article count matter more
+// Start at 1.2 (lower since log-scaling already compresses article count's influence)
+const STORY_RANKING_GRAVITY = 1.2;
+
 async function getStories() {
   const { data, error } = await supabase
     .from("stories")
@@ -106,10 +112,41 @@ async function getStories() {
     } as Story;
   });
 
-  // Sort stories by number of articles descending, to get the lead story first
-  return processedStories.sort(
-    (a, b) => (b.story_articles?.length ?? 0) - (a.story_articles?.length ?? 0),
-  );
+  // Sort stories by recency-weighted score
+  // score = Math.log(articleCount + 1) / Math.pow(ageInHours + 2, GRAVITY)
+  const now = Date.now();
+  
+  const storiesWithScores = processedStories.map((story) => {
+    const articleCount = story.story_articles?.length ?? 0;
+    
+    // Use summary_updated_at if present (when story was last meaningfully refreshed),
+    // otherwise fall back to updated_at
+    const relevantTimestamp = story.summary_updated_at || story.updated_at;
+    const storyDate = new Date(relevantTimestamp);
+    const ageInHours = (now - storyDate.getTime()) / (1000 * 60 * 60);
+    
+    // Calculate recency-weighted score with logarithmic article count
+    // log(articleCount + 1) caps how much article accumulation can dominate
+    // Add 2 to age to prevent division issues with very recent stories
+    const score = Math.log(articleCount + 1) / Math.pow(ageInHours + 2, STORY_RANKING_GRAVITY);
+    
+    return { story, score, articleCount, ageInHours };
+  });
+
+  // Sort by score descending (highest score = lead story)
+  storiesWithScores.sort((a, b) => b.score - a.score);
+
+  // Debug log top 6 stories for tuning
+  if (process.env.NODE_ENV === 'development' || process.env.LOG_STORY_RANKING === 'true') {
+    console.log('\n=== Story Ranking (Top 6) ===');
+    storiesWithScores.slice(0, 6).forEach((item, index) => {
+      console.log(`${index + 1}. Score: ${item.score.toFixed(6)} | Articles: ${item.articleCount} | Age: ${item.ageInHours.toFixed(1)}h`);
+      console.log(`   "${item.story.title.substring(0, 80)}..."`);
+    });
+    console.log('==============================\n');
+  }
+
+  return storiesWithScores.map(item => item.story);
 }
 
 async function getCoverageCounts() {

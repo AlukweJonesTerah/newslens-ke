@@ -38,6 +38,15 @@ interface StorySource {
   name: string;
 }
 
+interface FactCheck {
+  id: string;
+  title: string;
+  url: string;
+  verdict: string | null;
+  published_at: string | null;
+  similarity: number;
+}
+
 function parseEmbeddingValue(embedding: unknown): number[] | null {
   if (Array.isArray(embedding)) return embedding as number[];
   if (typeof embedding === "string") {
@@ -215,6 +224,66 @@ async function getRelatedStories(
   return topStories;
 }
 
+async function getRelatedFactChecks(
+  currentStoryArticles: Article[],
+): Promise<FactCheck[]> {
+  // 1. Compute centroid for current story
+  const currentCentroid = computeStoryCentroid(currentStoryArticles);
+  if (!currentCentroid) return [];
+
+  // 2. Fetch all fact-check articles with embeddings
+  const { data: factCheckArticles, error: factCheckError } = await supabase
+    .from("articles")
+    .select("id, title, url, fact_check_verdict, published_at, embedding, source_id")
+    .not("embedding", "is", null);
+
+  if (factCheckError || !factCheckArticles) return [];
+
+  // 3. Filter to only fact-check sources
+  const sourceIds = Array.from(
+    new Set(factCheckArticles.map((fc: any) => fc.source_id)),
+  );
+  
+  const { data: sources, error: sourcesError } = await supabase
+    .from("sources")
+    .select("id, source_type")
+    .in("id", sourceIds)
+    .eq("source_type", "fact_check");
+
+  if (sourcesError || !sources) return [];
+
+  const factCheckSourceIds = new Set(sources.map((s: any) => s.id));
+  const validFactChecks = factCheckArticles.filter((fc: any) =>
+    factCheckSourceIds.has(fc.source_id),
+  );
+
+  // 4. Compute similarity for each fact-check
+  const factCheckSimilarities: FactCheck[] = [];
+  const FACT_CHECK_THRESHOLD = 0.6;
+
+  for (const fc of validFactChecks) {
+    const fcEmbedding = parseEmbeddingValue(fc.embedding);
+    if (!fcEmbedding) continue;
+
+    const similarity = cosineSimilarityLocal(currentCentroid, fcEmbedding);
+
+    if (similarity >= FACT_CHECK_THRESHOLD) {
+      factCheckSimilarities.push({
+        id: fc.id,
+        title: fc.title,
+        url: fc.url,
+        verdict: fc.fact_check_verdict,
+        published_at: fc.published_at,
+        similarity,
+      });
+    }
+  }
+
+  // 5. Sort by similarity descending and return top matches
+  factCheckSimilarities.sort((a, b) => b.similarity - a.similarity);
+  return factCheckSimilarities.slice(0, 3); // Return top 3 fact-checks
+}
+
 export default async function StoryDetailPage({
   params,
 }: {
@@ -229,6 +298,7 @@ export default async function StoryDetailPage({
 
   const { articles, sources } = await getStoryArticles(storyId);
   const relatedStories = await getRelatedStories(storyId, articles);
+  const relatedFactChecks = await getRelatedFactChecks(articles);
 
   return (
     <StoryDetailClient
@@ -236,6 +306,7 @@ export default async function StoryDetailPage({
       articles={articles}
       sources={sources}
       relatedStories={relatedStories}
+      relatedFactChecks={relatedFactChecks}
     />
   );
 }

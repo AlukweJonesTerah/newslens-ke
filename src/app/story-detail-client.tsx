@@ -45,6 +45,15 @@ interface RelatedStory {
   article_count: number;
 }
 
+interface FactCheck {
+  id: string;
+  title: string;
+  url: string;
+  verdict: string | null;
+  published_at: string | null;
+  similarity: number;
+}
+
 function formatPublishedAt(dateStr: string | null): string {
   if (!dateStr) return "Unknown time";
   const date = new Date(dateStr);
@@ -110,6 +119,7 @@ const SOURCE_LOGOS: { match: string; path: string }[] = [
   { match: "standard",     path: "/logos/standard.png"      },
   { match: "kenyans",      path: "/logos/kenyans.png"       },
   { match: "tuko",         path: "/logos/tuko.png"          },
+  { match: "pesacheck",    path: "/logos/pesacheck.png"     },
 ];
 
 function getSourceLogoPath(sourceName: string): string | null {
@@ -117,16 +127,39 @@ function getSourceLogoPath(sourceName: string): string | null {
   return SOURCE_LOGOS.find((e) => n.includes(e.match))?.path ?? null;
 }
 
+function getVerdictColor(verdict: string | null): string {
+  if (!verdict) return "#6b7280"; // gray
+  const v = verdict.toUpperCase();
+  if (v.includes("FALSE") || v.includes("FAKE") || v.includes("INCORRECT")) {
+    return "#dc2626"; // red
+  }
+  if (v.includes("MISLEADING") || v.includes("MOSTLY FALSE")) {
+    return "#ea580c"; // orange
+  }
+  if (v.includes("UNPROVEN") || v.includes("UNVERIFIED")) {
+    return "#d97706"; // amber
+  }
+  if (v.includes("TRUE") || v.includes("CORRECT")) {
+    return "#16a34a"; // green
+  }
+  if (v.includes("MOSTLY TRUE")) {
+    return "#65a30d"; // light green
+  }
+  return "#6b7280"; // gray default
+}
+
 export default function StoryDetailClient({
   story,
   articles,
   sources,
   relatedStories,
+  relatedFactChecks = [],
 }: {
   story: Story;
   articles: Article[];
   sources: StorySource[];
   relatedStories: RelatedStory[];
+  relatedFactChecks?: FactCheck[];
 }) {
   const [activeTab, setActiveTab] = useState("all");
   const sourceNames = [...new Set(articles.map((a) => a.source_name))];
@@ -476,6 +509,92 @@ export default function StoryDetailClient({
               </div>
             </section>
 
+            {/* Related Fact-Checks */}
+            {relatedFactChecks.length > 0 && (
+              <section className="bg-white border border-gray-200 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                    Related Fact-Checks
+                  </h2>
+                </div>
+                <div className="space-y-3">
+                  {relatedFactChecks.map((factCheck) => (
+                    <a
+                      key={factCheck.id}
+                      href={factCheck.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-4 border border-gray-100 rounded-xl hover:border-gray-300 hover:shadow-sm transition"
+                    >
+                      {/* PesaCheck attribution */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <img
+                          src="/logos/pesacheck.svg"
+                          alt="PesaCheck logo"
+                          className="w-5 h-5 object-contain"
+                        />
+                        <span className="text-xs font-semibold text-gray-600">
+                          Fact-check by PesaCheck
+                        </span>
+                      </div>
+
+                      {/* Verdict badge */}
+                      {factCheck.verdict && (
+                        <div className="mb-2">
+                          <span
+                            className="inline-block px-2.5 py-1 text-xs font-bold uppercase tracking-wide rounded-md text-white"
+                            style={{ backgroundColor: getVerdictColor(factCheck.verdict) }}
+                          >
+                            {factCheck.verdict}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Headline */}
+                      <p className="text-sm font-medium text-gray-900 leading-snug mb-2">
+                        {factCheck.title}
+                      </p>
+
+                      {/* Published date */}
+                      {factCheck.published_at && (
+                        <p className="text-xs text-gray-500">
+                          {new Date(factCheck.published_at).toLocaleDateString('en-KE', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </p>
+                      )}
+
+                      {/* External link indicator */}
+                      <div className="flex items-center gap-1 mt-2 text-xs text-[#1a4d7a]">
+                        <span>Read full fact-check</span>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                          <polyline points="15 3 21 3 21 9" />
+                          <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+
+                {/* Disclaimer */}
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    These fact-checks are published by PesaCheck, Africa's independent fact-checking initiative. NewsLens surfaces them based on topical similarity.
+                  </p>
+                </div>
+              </section>
+            )}
+
             {/* Related Stories */}
             {relatedStories.length > 0 && (
               <section className="bg-white border border-gray-200 rounded-2xl p-5">
@@ -553,7 +672,7 @@ export default function StoryDetailClient({
             )}
 
             {/* Other top stories (placeholder) */}
-            <section className="bg-white border border-gray-200 rounded-2xl p-5">
+            {/* <section className="bg-white border border-gray-200 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
                   Other Top Stories
@@ -562,7 +681,7 @@ export default function StoryDetailClient({
               <p className="text-xs text-gray-500">
                 View all stories on the homepage
               </p>
-            </section>
+            </section> */}
           </div>
         </div>
       </div>

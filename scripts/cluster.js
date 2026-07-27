@@ -157,7 +157,7 @@ async function runCluster(hardDeadline = null) {
       Date.now() - CLUSTER_WINDOW_HOURS * 3600 * 1000,
     );
     console.log(
-      `Fetching articles published after: ${windowStart.toISOString()}`,
+      `Fetching articles published after: ${windowStart.toISOString()} (excluding fact-checks)`,
     );
 
     const { rows: articles } = await pool.query(
@@ -173,6 +173,7 @@ async function runCluster(hardDeadline = null) {
         WHERE
           a.embedding IS NOT NULL
           AND a.published_at >= $1
+          AND s.source_type = 'news'
         ORDER BY a.published_at ASC
       `,
       [windowStart],

@@ -403,11 +403,11 @@ export default async function StoriesPage({
                                 </span>
                               </div>
                             </div>
-                            <div className="w-full h-24 mt-4 rounded-lg overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                            {/* <div className="w-full h-24 mt-4 rounded-lg overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
                               <span className="text-gray-400 text-xs">
                                 Image
                               </span>
-                            </div>
+                            </div> */}
                           </div>
                         </Link>
                       ))}

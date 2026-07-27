@@ -147,6 +147,38 @@ async function extractWithArticleExtractor(url) {
   return text.length > 0 ? text : null;
 }
 
+/**
+ * Extract verdict from PesaCheck fact-check articles
+ * Looks for common verdict patterns in title or content
+ */
+function extractFactCheckVerdict(title, text) {
+  if (!title && !text) return null;
+  
+  const searchText = `${title || ''} ${text || ''}`.toUpperCase();
+  
+  // Common PesaCheck verdict patterns
+  const verdictPatterns = [
+    { pattern: /\bFALSE\b/, verdict: 'FALSE' },
+    { pattern: /\bFAKE\b/, verdict: 'FAKE' },
+    { pattern: /\bMISLEADING\b/, verdict: 'MISLEADING' },
+    { pattern: /\bTRUE\b/, verdict: 'TRUE' },
+    { pattern: /\bMOSTLY TRUE\b/, verdict: 'MOSTLY TRUE' },
+    { pattern: /\bMOSTLY FALSE\b/, verdict: 'MOSTLY FALSE' },
+    { pattern: /\bUNPROVEN\b/, verdict: 'UNPROVEN' },
+    { pattern: /\bUNVERIFIED\b/, verdict: 'UNVERIFIED' },
+    { pattern: /\bINCORRECT\b/, verdict: 'INCORRECT' },
+    { pattern: /\bCORRECT\b/, verdict: 'CORRECT' },
+  ];
+  
+  for (const { pattern, verdict } of verdictPatterns) {
+    if (pattern.test(searchText)) {
+      return verdict;
+    }
+  }
+  
+  return null;
+}
+
 async function extractArticleText(url, item) {
   try {
     const text = await extractWithArticleExtractor(url);
@@ -165,7 +197,7 @@ async function seedSources(supabase) {
   const { data, error } = await supabase
     .from("sources")
     .upsert(SEED_SOURCES, { onConflict: "rss_url", ignoreDuplicates: false })
-    .select("id, name, rss_url, site_url");
+    .select("id, name, rss_url, site_url, source_type");
 
   if (error) {
     throw new Error(`Failed to seed sources: ${error.message}`);
@@ -253,6 +285,10 @@ async function ingestSource(supabase, source) {
         stats.failedExtraction += 1;
       }
 
+      // For fact-check sources, extract the verdict
+      const isFactCheck = source.source_type === 'fact_check';
+      const verdict = isFactCheck ? extractFactCheckVerdict(title, text) : null;
+
       const { error } = await supabase.from("articles").insert({
         source_id: source.id,
         title,
@@ -260,6 +296,7 @@ async function ingestSource(supabase, source) {
         raw_text: text,
         published_at: parsePublishedAt(item),
         fetched_at: new Date().toISOString(),
+        fact_check_verdict: verdict,
       });
 
       if (error) {
