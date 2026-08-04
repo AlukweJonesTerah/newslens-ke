@@ -13,6 +13,35 @@ pnpm dev
 # or
 bun dev
 ```
+If using docker
+
+```bash
+docker-compose up
+```
+To install dependencies, run:
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+# or
+bun install
+```
+To install dependencies if using docker, run:
+
+```bash
+docker compose exec web npm install <package_name> // to install a new package
+
+docker compose exec web npm install // to install all packages from package.json
+docker compose exec web npm run list // to list all installed packages
+
+docker compose exec web npm uninstall <package_name> // to uninstall a package
+docker compose exec web npm update // to update all packages
+
+```
+
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
