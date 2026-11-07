@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import SourceDetailClient from "../../source-detail-client";
 
-export const revalidate = 300; // Revalidate every 5 minutes so pipeline updates show up without a redeploy
+export const dynamic = "force-dynamic"; // Render on each request: fresh pipeline data, and `next build` needs no Supabase secrets
 
 type CoverageCategory =
   | "government_focused"

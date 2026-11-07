@@ -1,7 +1,12 @@
-Node_modules
+node_modules
 .next
 out
 build
 .git
-Dockerfile
+.env*
+.vercelenv*
+*.log
+*.csv
+tmp_*.js
 docker-compose.yml
+Dockerfile.dev
