@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
+import { InfobipSmsError, sendInfobipSms } from "@/lib/infobip-sms";
+import { normalizePhone } from "../../../../../../scripts/sms-followup.js";
 
 const requestSchema = z.object({ storyId: z.string().uuid() });
 export async function POST(request: Request) {
@@ -18,42 +20,18 @@ export async function POST(request: Request) {
   }
 
   const apiKey = process.env.INFOBIP_API_KEY;
-  const configuredBaseUrl = process.env.INFOBIP_BASE_URL;
   const recipient = process.env.INFOBIP_RECIPIENT;
   const sender = process.env.INFOBIP_SENDER;
 
-  if (!apiKey || !configuredBaseUrl || !recipient || !sender) {
+  if (!apiKey || !process.env.INFOBIP_BASE_URL || !recipient || !sender) {
     return NextResponse.json(
       { error: "SMS service is not configured" },
       { status: 503 },
     );
   }
 
-  let baseUrl: URL;
-  try {
-    baseUrl = new URL(
-      configuredBaseUrl.startsWith("https://")
-        ? configuredBaseUrl
-        : `https://${configuredBaseUrl}`,
-    );
-  } catch {
-    return NextResponse.json(
-      { error: "SMS provider base URL is invalid" },
-      { status: 503 },
-    );
-  }
-
-  if (
-    baseUrl.protocol !== "https:" ||
-    !(baseUrl.hostname === "api.infobip.com" || baseUrl.hostname.endsWith(".api.infobip.com"))
-  ) {
-    return NextResponse.json(
-      { error: "SMS provider base URL is invalid" },
-      { status: 503 },
-    );
-  }
-
-  if (!/^\+[1-9]\d{7,14}$/.test(recipient)) {
+  const phoneNumber = normalizePhone(recipient);
+  if (!phoneNumber) {
     return NextResponse.json(
       { error: "SMS recipient must be an international phone number" },
       { status: 503 },
@@ -73,6 +51,22 @@ export async function POST(request: Request) {
 
   if (!story) {
     return NextResponse.json({ error: "Story not found" }, { status: 404 });
+  }
+
+  const { data: subscriber, error: subscriberError } = await supabase
+    .from("sms_subscribers")
+    .select("id")
+    .eq("phone_number", phoneNumber)
+    .not("opted_in_at", "is", null)
+    .is("opted_out_at", null)
+    .maybeSingle();
+
+  if (subscriberError) {
+    console.error("SMS consent lookup failed:", subscriberError.message);
+    return NextResponse.json({ error: "Could not verify SMS consent" }, { status: 503 });
+  }
+  if (!subscriber) {
+    return NextResponse.json({ error: "SMS recipient has not opted in" }, { status: 403 });
   }
 
   const { data: canSend, error: limitError } = await supabase.rpc(
@@ -102,47 +96,60 @@ export async function POST(request: Request) {
     .filter(Boolean)
     .join("\n");
 
-  let providerResponse: Response;
-  try {
-    providerResponse = await fetch(new URL("/sms/3/messages", baseUrl), {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `App ${apiKey}`,
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            sender,
-            destinations: [{ to: recipient }],
-            content: { text: message },
-          },
-        ],
-      }),
-    });
-  } catch {
-    return NextResponse.json(
-      { error: "Could not reach the SMS provider" },
-      { status: 502 },
-    );
+  const { data: delivery, error: deliveryError } = await supabase
+    .from("sms_deliveries")
+    .insert({
+      subscriber_id: subscriber.id,
+      story_id: parsed.data.storyId,
+      delivery_type: "story",
+      status: "queued",
+    })
+    .select("id,callback_data")
+    .single();
+
+  if (deliveryError || !delivery) {
+    console.error("Could not record story SMS delivery:", deliveryError?.message);
+    return NextResponse.json({ error: "Could not prepare SMS delivery" }, { status: 503 });
   }
 
-  const providerResult = await providerResponse.json().catch(() => null);
-  const messageResult = providerResult?.messages?.[0];
-  const statusGroup = messageResult?.status?.groupName;
-
-  if (!providerResponse.ok || !messageResult || statusGroup === "REJECTED") {
-    console.error("Infobip rejected follow-up:", {
-      httpStatus: providerResponse.status,
-      statusGroup,
-      statusName: messageResult?.status?.name,
+  let providerResult: Awaited<ReturnType<typeof sendInfobipSms>>;
+  try {
+    providerResult = await sendInfobipSms({
+      to: phoneNumber,
+      sender,
+      text: message,
+      messageId: delivery.id,
+      callbackData: delivery.callback_data,
     });
+  } catch (error) {
+    await supabase
+      .from("sms_deliveries")
+      .update({
+        status: "failed",
+        error_code: error instanceof InfobipSmsError ? error.code : null,
+      })
+      .eq("id", delivery.id);
+    const status = error instanceof InfobipSmsError ? error.status : undefined;
+    console.error("Infobip story SMS failed:", { status });
     return NextResponse.json(
       { error: "The SMS provider did not accept the message" },
       { status: 502 },
     );
   }
 
-  return NextResponse.json({ success: true });
+  const { error: recordError } = await supabase
+    .from("sms_deliveries")
+    .update({
+      status: "accepted",
+      provider_message_id: providerResult.messageId,
+      provider_status: providerResult.status,
+      accepted_at: new Date().toISOString(),
+    })
+    .eq("id", delivery.id);
+
+  if (recordError) {
+    console.error("Could not update accepted SMS delivery:", recordError.message);
+  }
+
+  return NextResponse.json({ success: true, status: providerResult.status });
 }

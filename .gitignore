@@ -43,4 +43,5 @@ next-env.d.ts
 .vercel
 .env*
 .env.local
+!.env.example
 
