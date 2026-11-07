@@ -295,23 +295,15 @@ async function runFollowups(options) {
         break;
       }
 
+      let providerResult;
       try {
-        const providerResult = await options.send({
+        providerResult = await options.send({
           to: normalizePhone(subscriberAtSend.phone_number),
           sender: options.sender,
           message,
           messageId: claim.id,
           callbackData: claim.callback_data,
         });
-        await options.store.updateDelivery(claim.id, {
-          status: "accepted",
-          provider_message_id: providerResult.messageId,
-          provider_status: providerResult.status,
-          accepted_at: clock().toISOString(),
-        });
-        result.sent += 1;
-        accepted = true;
-        break;
       } catch (error) {
         await options.store.updateDelivery(claim.id, {
           status: "failed",
@@ -323,7 +315,22 @@ async function runFollowups(options) {
           break;
         }
         await sleep(settings.retryDelayMs * (attempt + 1));
+        continue;
       }
+
+      try {
+        await options.store.updateDelivery(claim.id, {
+          status: "accepted",
+          provider_message_id: providerResult.messageId,
+          provider_status: providerResult.status,
+          accepted_at: clock().toISOString(),
+        });
+      } catch {
+        throw new Error("Infobip accepted the SMS, but the delivery record could not be updated; not retrying to avoid a duplicate");
+      }
+      result.sent += 1;
+      accepted = true;
+      break;
     }
 
     if (result.stoppedAtWindowEnd) break;

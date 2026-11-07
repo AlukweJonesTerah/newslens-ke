@@ -152,6 +152,25 @@ async function main() {
     assert.equal(sends, 1);
   });
 
+  await test("does not retry after provider acceptance if delivery persistence fails", async () => {
+    let sends = 0;
+    const store = {
+      getRecentStoryDeliveries: async () => [delivery()],
+      getSubscriber: async () => subscriber,
+      claimFollowupDelivery: async () => ({ id: "delivery-1", callback_data: "token" }),
+      updateDelivery: async (id, values) => {
+        if (values.status === "accepted") throw new Error("database unavailable");
+      },
+    };
+    await assert.rejects(runFollowups({
+      now: () => monday(9),
+      config: { ...openWindow, appBaseUrl: "https://newslens.example" },
+      store,
+      send: async () => { sends += 1; return { messageId: "accepted-id" }; },
+    }), /not retrying to avoid a duplicate/);
+    assert.equal(sends, 1);
+  });
+
   await test("manual flag bypasses the window only for TEST_MSISDN", async () => {
     const otherSubscriber = { ...subscriber, id: "sub-2", phone_number: "+254722345678" };
     const sentTo = [];
