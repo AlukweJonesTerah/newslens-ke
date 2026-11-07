@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Newsreader } from "next/font/google";
 import "./globals.css";
 import HeaderClient from "./HeaderClient";
@@ -19,6 +19,14 @@ const newsreader = Newsreader({
 export const metadata: Metadata = {
   title: "NewsLens KE",
   description: "Kenyan news aggregator with coverage analysis",
+  // iOS "Add to Home Screen": full-screen launch and home-screen icon
+  appleWebApp: { capable: true, title: "NewsLens KE", statusBarStyle: "default" },
+  icons: { apple: "/apple-touch-icon.png" },
+};
+
+// Colours the browser/status bar to match the app when installed
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
 };
 
 function Header() {
