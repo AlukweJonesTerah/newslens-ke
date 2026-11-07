@@ -3,8 +3,6 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 
 const requestSchema = z.object({ storyId: z.string().uuid() });
-const acceptedStatuses = new Set([100, 101, 102]);
-
 export async function POST(request: Request) {
   let payload: unknown;
 
@@ -19,14 +17,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A valid storyId is required" }, { status: 400 });
   }
 
-  const apiKey = process.env.AFRICASTALKING_API_KEY;
-  const username = process.env.AFRICASTALKING_USERNAME;
-  const recipient = process.env.AFRICASTALKING_RECIPIENT;
-  const senderId = process.env.AFRICASTALKING_SENDER_ID;
+  const apiKey = process.env.INFOBIP_API_KEY;
+  const configuredBaseUrl = process.env.INFOBIP_BASE_URL;
+  const recipient = process.env.INFOBIP_RECIPIENT;
+  const sender = process.env.INFOBIP_SENDER;
 
-  if (!apiKey || !username || !recipient || !senderId) {
+  if (!apiKey || !configuredBaseUrl || !recipient || !sender) {
     return NextResponse.json(
       { error: "SMS service is not configured" },
+      { status: 503 },
+    );
+  }
+
+  let baseUrl: URL;
+  try {
+    baseUrl = new URL(
+      configuredBaseUrl.startsWith("https://")
+        ? configuredBaseUrl
+        : `https://${configuredBaseUrl}`,
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "SMS provider base URL is invalid" },
+      { status: 503 },
+    );
+  }
+
+  if (
+    baseUrl.protocol !== "https:" ||
+    !(baseUrl.hostname === "api.infobip.com" || baseUrl.hostname.endsWith(".api.infobip.com"))
+  ) {
+    return NextResponse.json(
+      { error: "SMS provider base URL is invalid" },
       { status: 503 },
     );
   }
@@ -82,23 +104,23 @@ export async function POST(request: Request) {
 
   let providerResponse: Response;
   try {
-    providerResponse = await fetch(
-      "https://api.africastalking.com/version1/messaging/bulk",
-      {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          apiKey,
-        },
-        body: JSON.stringify({
-          username,
-          phoneNumbers: [recipient],
-          message,
-          senderId,
-        }),
+    providerResponse = await fetch(new URL("/sms/3/messages", baseUrl), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `App ${apiKey}`,
       },
-    );
+      body: JSON.stringify({
+        messages: [
+          {
+            sender,
+            destinations: [{ to: recipient }],
+            content: { text: message },
+          },
+        ],
+      }),
+    });
   } catch {
     return NextResponse.json(
       { error: "Could not reach the SMS provider" },
@@ -107,13 +129,14 @@ export async function POST(request: Request) {
   }
 
   const providerResult = await providerResponse.json().catch(() => null);
-  const recipientResult = providerResult?.SMSMessageData?.Recipients?.[0];
-  const statusCode = Number(recipientResult?.statusCode);
+  const messageResult = providerResult?.messages?.[0];
+  const statusGroup = messageResult?.status?.groupName;
 
-  if (!providerResponse.ok || !acceptedStatuses.has(statusCode)) {
-    console.error("SMS provider rejected follow-up:", {
+  if (!providerResponse.ok || !messageResult || statusGroup === "REJECTED") {
+    console.error("Infobip rejected follow-up:", {
       httpStatus: providerResponse.status,
-      statusCode: recipientResult?.statusCode,
+      statusGroup,
+      statusName: messageResult?.status?.name,
     });
     return NextResponse.json(
       { error: "The SMS provider did not accept the message" },
