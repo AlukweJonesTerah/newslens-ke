@@ -5,43 +5,73 @@ import { sendInfobipSms } from "@/lib/infobip-sms";
 
 export const maxDuration = 800;
 
+function readInt(name: string, fallback: number, min: number, max: number) {
+  const parsed = Number.parseInt(process.env[name] || "", 10);
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+}
+
 function readConfig() {
   return {
     enabled: process.env.FOLLOWUP_ENABLED === "true",
     windowStart: process.env.FOLLOWUP_WINDOW_START || "08:00",
     windowEnd: process.env.FOLLOWUP_WINDOW_END || "12:00",
     day: process.env.FOLLOWUP_DAY || "Monday",
-    lookbackDays: Number.parseInt(process.env.FOLLOWUP_LOOKBACK_DAYS || "7", 10),
+    lookbackDays: readInt("FOLLOWUP_LOOKBACK_DAYS", 7, 1, 30),
     timezone: process.env.FOLLOWUP_TIMEZONE || "Africa/Nairobi",
     appBaseUrl: process.env.APP_BASE_URL,
     maxSegments: 2,
     maxRetries: 2,
-    retryDelayMs: Number.parseInt(process.env.FOLLOWUP_RETRY_DELAY_MS || "1000", 10),
-    sendDelayMs: Number.parseInt(process.env.FOLLOWUP_SEND_DELAY_MS || "1000", 10),
-    batchSize: Number.parseInt(process.env.FOLLOWUP_BATCH_SIZE || "20", 10),
+    retryDelayMs: readInt("FOLLOWUP_RETRY_DELAY_MS", 1000, 100, 10000),
+    sendDelayMs: readInt("FOLLOWUP_SEND_DELAY_MS", 1000, 250, 10000),
+    batchSize: readInt("FOLLOWUP_BATCH_SIZE", 20, 1, 100),
   };
 }
 
 function createStore(supabase: ReturnType<typeof createClient>) {
   return {
     async getRecentStoryDeliveries({ since }: { since: Date }) {
-      const { data, error } = await supabase
-        .from("sms_deliveries")
-        .select(
-          "subscriber_id,story_id,status,sent_at,created_at,subscriber:sms_subscribers!inner(id,phone_number,opted_in_at,opted_out_at),story:stories!inner(title)",
-        )
-        .eq("delivery_type", "story")
-        .in("status", ["sent", "delivered"])
-        .gte("sent_at", since.toISOString())
-        .order("sent_at", { ascending: true })
-        .limit(1000);
+      const deliveries: any[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await supabase
+          .from("sms_deliveries")
+          .select(
+            "subscriber_id,story_id,status,sent_at,created_at,subscriber:sms_subscribers!inner(id,phone_number,opted_in_at,opted_out_at),story:stories!inner(title)",
+          )
+          .eq("delivery_type", "story")
+          .in("status", ["sent", "delivered"])
+          .gte("sent_at", since.toISOString())
+          .order("sent_at", { ascending: true })
+          .range(offset, offset + 999);
 
-      if (error) throw new Error(error.message);
-      return (data || []).map((row: any) => ({
+        if (error) throw new Error(error.message);
+        deliveries.push(...(data || []));
+        if ((data || []).length < 1000) break;
+      }
+
+      return deliveries.map((row: any) => ({
         ...row,
         subscriber: Array.isArray(row.subscriber) ? row.subscriber[0] : row.subscriber,
         story_title: Array.isArray(row.story) ? row.story[0]?.title : row.story?.title,
       }));
+    },
+
+    async getFollowupKeys(candidates: any[]) {
+      const subscriberIds = [...new Set(candidates.map((candidate) => candidate.subscriber.id))];
+      const storyIds = [...new Set(candidates.map((candidate) => candidate.story_id))];
+      const keys = new Set<string>();
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await supabase
+          .from("sms_deliveries")
+          .select("subscriber_id,story_id")
+          .eq("delivery_type", "followup")
+          .in("subscriber_id", subscriberIds)
+          .in("story_id", storyIds)
+          .range(offset, offset + 999);
+        if (error) throw new Error(error.message);
+        for (const row of data || []) keys.add(`${row.subscriber_id}:${row.story_id}`);
+        if ((data || []).length < 1000) break;
+      }
+      return keys;
     },
 
     async getSubscriber(subscriberId: string) {

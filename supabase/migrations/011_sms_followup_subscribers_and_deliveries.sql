@@ -44,6 +44,8 @@ alter table public.sms_subscribers enable row level security;
 alter table public.sms_deliveries enable row level security;
 revoke all on table public.sms_subscribers from public, anon, authenticated;
 revoke all on table public.sms_deliveries from public, anon, authenticated;
+grant select, insert, update on table public.sms_subscribers to service_role;
+grant select, insert, update on table public.sms_deliveries to service_role;
 
 create or replace function public.claim_sms_followup_delivery(
   p_subscriber_id uuid,

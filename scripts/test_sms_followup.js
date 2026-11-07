@@ -152,6 +152,26 @@ async function main() {
     assert.equal(sends, 1);
   });
 
+  await test("skips previously followed stories before taking a batch", async () => {
+    const otherSubscriber = { ...subscriber, id: "sub-2", phone_number: "+254722345678" };
+    const sends = [];
+    const store = {
+      getRecentStoryDeliveries: async () => [delivery(), delivery({ subscriber: otherSubscriber })],
+      getFollowupKeys: async () => new Set([`${subscriber.id}:${delivery().story_id}`]),
+      getSubscriber: async (id) => id === subscriber.id ? subscriber : otherSubscriber,
+      claimFollowupDelivery: async ({ subscriberId }) => ({ id: subscriberId, callback_data: "token" }),
+      updateDelivery: async () => {},
+    };
+    const result = await runFollowups({
+      now: () => monday(9),
+      config: { ...openWindow, appBaseUrl: "https://newslens.example", batchSize: 1 },
+      store,
+      send: async ({ to }) => { sends.push(to); return { messageId: "accepted-id" }; },
+    });
+    assert.equal(result.sent, 1);
+    assert.deepEqual(sends, [otherSubscriber.phone_number]);
+  });
+
   await test("does not retry after provider acceptance if delivery persistence fails", async () => {
     let sends = 0;
     const store = {

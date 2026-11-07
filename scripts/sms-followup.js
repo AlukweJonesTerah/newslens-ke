@@ -235,8 +235,14 @@ async function runFollowups(options) {
   const deliveries = await options.store.getRecentStoryDeliveries({
     since: new Date(nowAtStart.getTime() - settings.lookbackDays * 24 * 60 * 60 * 1000),
   });
-  const candidates = selectCandidates(deliveries, nowAtStart, settings.lookbackDays, manual ? options.testMsisdn : null);
-  candidates.splice(settings.batchSize);
+  let candidates = selectCandidates(deliveries, nowAtStart, settings.lookbackDays, manual ? options.testMsisdn : null);
+  if (typeof options.store.getFollowupKeys === "function" && candidates.length > 0) {
+    const followedKeys = await options.store.getFollowupKeys(candidates);
+    candidates = candidates.filter(
+      (candidate) => !followedKeys.has(`${candidate.subscriber.id}:${candidate.story_id}`),
+    );
+  }
+  candidates = candidates.slice(0, settings.batchSize);
   const result = { skipped: false, sent: 0, dryRun: 0, failed: 0, ignored: 0, stoppedAtWindowEnd: false };
 
   for (let index = 0; index < candidates.length; index += 1) {
@@ -311,9 +317,11 @@ async function runFollowups(options) {
         });
         if (isFatalProviderError(error)) throw error;
         if (!isTransientProviderError(error) || attempt >= settings.maxRetries) {
+          logger.error?.(`[SMS follow-up] failed for ${maskPhone(phoneNumber)} story ${storyId}`);
           result.failed += 1;
           break;
         }
+        logger.warn?.(`[SMS follow-up] retry ${attempt + 1} for ${maskPhone(phoneNumber)} story ${storyId}`);
         await sleep(settings.retryDelayMs * (attempt + 1));
         continue;
       }
