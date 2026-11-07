@@ -118,6 +118,7 @@ export async function POST(request: Request) {
       to: phoneNumber,
       sender,
       text: message,
+      messageId: delivery.id,
       callbackData: delivery.callback_data,
     });
   } catch (error) {

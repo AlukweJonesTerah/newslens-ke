@@ -37,11 +37,13 @@ export async function sendInfobipSms({
   sender,
   text,
   callbackData,
+  messageId,
 }: {
   to: string;
   sender: string;
   text: string;
   callbackData?: string;
+  messageId?: string;
 }) {
   const apiKey = process.env.INFOBIP_API_KEY;
   if (!apiKey) throw new InfobipSmsError("Infobip API key is not configured", 400);
@@ -60,9 +62,11 @@ export async function sendInfobipSms({
         messages: [
           {
             sender,
-            destinations: [{ to }],
+            destinations: [{ to, ...(messageId ? { messageId } : {}) }],
             content: { text },
-            ...(callbackData ? { callbackData } : {}),
+            ...(callbackData
+              ? { webhooks: { contentType: "application/json", callbackData } }
+              : {}),
           },
         ],
       }),

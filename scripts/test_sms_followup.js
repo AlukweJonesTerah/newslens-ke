@@ -52,6 +52,7 @@ async function main() {
     assert.equal(isEligibleStoryDelivery(delivery({ sent_at: "2026-11-01T05:59:59Z" }), cutoff, now), false);
     assert.equal(isEligibleStoryDelivery(delivery({ subscriber: { ...subscriber, opted_out_at: now.toISOString() } }), cutoff, now), false);
     assert.equal(isEligibleStoryDelivery(delivery({ subscriber: { ...subscriber, opted_in_at: null } }), cutoff, now), false);
+    assert.equal(isEligibleStoryDelivery(delivery({ subscriber: { ...subscriber, phone_number: "invalid" } }), cutoff, now), false);
   });
 
   await test("selects only the most recent eligible story per subscriber", () => {
@@ -74,6 +75,14 @@ async function main() {
     assert.ok(!/[“”‘’🚫]/u.test(message));
     assert.ok(countGsmSeptets(message) <= 306);
     assert.ok(countSmsSegments(message) <= 2);
+  });
+
+  await test("keeps a short follow-up to one GSM-7 segment", () => {
+    const message = buildFollowupMessage({
+      title: "Court publishes its ruling",
+      storyUrl: "https://newslens.example/stories/123",
+    });
+    assert.equal(countSmsSegments(message), 1);
   });
 
   await test("dry-run sends nothing and persists nothing", async () => {
@@ -116,6 +125,52 @@ async function main() {
     });
     assert.equal(result.ignored, 1);
     assert.equal(sends, 0);
+  });
+
+  await test("the database claim allows at most one follow-up for a user/story pair", async () => {
+    const claimed = new Set();
+    let sends = 0;
+    const store = {
+      getRecentStoryDeliveries: async () => [delivery()],
+      getSubscriber: async () => subscriber,
+      claimFollowupDelivery: async ({ subscriberId, storyId }) => {
+        const key = `${subscriberId}:${storyId}`;
+        if (claimed.has(key)) return null;
+        claimed.add(key);
+        return { id: "delivery-1", callback_data: "token" };
+      },
+      updateDelivery: async () => {},
+    };
+    const options = {
+      now: () => monday(9),
+      config: { ...openWindow, appBaseUrl: "https://newslens.example" },
+      store,
+      send: async () => { sends += 1; return { messageId: "accepted-id" }; },
+    };
+    assert.equal((await runFollowups(options)).sent, 1);
+    assert.equal((await runFollowups(options)).ignored, 1);
+    assert.equal(sends, 1);
+  });
+
+  await test("manual flag bypasses the window only for TEST_MSISDN", async () => {
+    const otherSubscriber = { ...subscriber, id: "sub-2", phone_number: "+254722345678" };
+    const sentTo = [];
+    const store = {
+      getRecentStoryDeliveries: async () => [delivery(), delivery({ subscriber: otherSubscriber })],
+      getSubscriber: async (id) => id === subscriber.id ? subscriber : otherSubscriber,
+      claimFollowupDelivery: async () => ({ id: "delivery-1", callback_data: "token" }),
+      updateDelivery: async () => {},
+    };
+    const result = await runFollowups({
+      now: () => new Date("2026-11-10T09:00:00Z"),
+      config: { ...openWindow, appBaseUrl: "https://newslens.example" },
+      store,
+      send: async ({ to }) => { sentTo.push(to); return { messageId: "accepted-id" }; },
+      manual: true,
+      testMsisdn: "0712 345 678",
+    });
+    assert.equal(result.sent, 1);
+    assert.deepEqual(sentTo, [subscriber.phone_number]);
   });
 
   await test("stops at the window end and leaves later candidates unsent", async () => {
@@ -163,19 +218,26 @@ async function main() {
     assert.equal(attempts, 3);
     assert.equal(result.sent, 1);
 
-    let nextUserSent = false;
+    let authAttempts = 0;
+    let laterUserSendAttempts = 0;
     const authStore = {
       ...store,
       getRecentStoryDeliveries: async () => [delivery(), delivery({ subscriber: { ...subscriber, id: "sub-2" } })],
       claimFollowupDelivery: async ({ subscriberId }) => ({ id: subscriberId, callback_data: "token" }),
+      getSubscriber: async (id) => ({ ...subscriber, id }),
     };
     await assert.rejects(runFollowups({
       now: () => monday(9),
       config: { ...openWindow, appBaseUrl: "https://newslens.example" },
       store: authStore,
-      send: async () => { throw Object.assign(new Error("unauthorized"), { status: 401 }); },
+      send: async ({ to }) => {
+        if (to === subscriber.phone_number) authAttempts += 1;
+        else laterUserSendAttempts += 1;
+        throw Object.assign(new Error("unauthorized"), { status: 401 });
+      },
     }), /unauthorized/);
-    assert.equal(nextUserSent, false);
+    assert.equal(authAttempts, 1);
+    assert.equal(laterUserSendAttempts, 0);
   });
 
   console.log("SMS follow-up tests passed");

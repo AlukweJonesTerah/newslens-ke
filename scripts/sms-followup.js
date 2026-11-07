@@ -300,6 +300,7 @@ async function runFollowups(options) {
           to: normalizePhone(subscriberAtSend.phone_number),
           sender: options.sender,
           message,
+          messageId: claim.id,
           callbackData: claim.callback_data,
         });
         await options.store.updateDelivery(claim.id, {
