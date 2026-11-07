@@ -13,15 +13,15 @@ function statusFromReport(report: DeliveryReport) {
   const group = report.status?.groupName?.toUpperCase();
   const name = report.status?.name?.toUpperCase() || "UNKNOWN";
 
-  if (group === "DELIVERED") return { status: "delivered", providerStatus: name };
+  if (group === "DELIVERED") return { status: "delivered", provider_status: name };
   if (name.includes("SENT_TO_OPERATOR") || name === "SENT") {
-    return { status: "sent", providerStatus: name };
+    return { status: "sent", provider_status: name };
   }
   if (["UNDELIVERABLE", "EXPIRED", "REJECTED"].includes(group || "")) {
-    return { status: "failed", providerStatus: name };
+    return { status: "failed", provider_status: name };
   }
   if (["PENDING", "ACCEPTED"].includes(group || "")) {
-    return { status: "accepted", providerStatus: name };
+    return { status: "accepted", provider_status: name };
   }
   return null;
 }
