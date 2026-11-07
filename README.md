@@ -43,6 +43,22 @@ flowchart LR
 
 The web experience reads stories, articles, and sources from Supabase. A scheduled pipeline is configured to run hourly for ingestion, embedding, clustering, and summarization. The follow-up job checks its configured day and send window in `Africa/Nairobi`, independently of the server timezone.
 
+## Coverage Analysis and AI Pipeline
+
+Coverage Analysis describes the dominant angle assigned to a **story cluster**. The current categories are Government, Opposition, Public, Business, and International. A category count is a count of story clusters, not a count of articles: one cluster may contain reports from several outlets.
+
+| Stage | Current implementation |
+| --- | --- |
+| Ingestion | Reads configured publisher RSS feeds, extracts article text when available, and deduplicates articles by normalized URL. |
+| Embeddings | Uses Gemini text embeddings (768 dimensions) to represent article content. |
+| Story grouping | Compares articles published within a rolling 72-hour window using cosine similarity against cluster centroids and anchors. A lightweight title-token overlap check helps reject some unrelated clusters. This is not BERTopic or K-means. |
+| Coverage classification | Gemini produces structured story output: one coverage category, a neutral summary, outlet-specific notes, and claims with their reported sources. This is prompt-based LLM classification, not a fine-tuned BERT/RoBERTa classifier. |
+| Reader presentation | Shows the category, linked source articles, model-generated perspective notes, and claims reported by multiple or single sources. |
+
+The system does not currently run a general-purpose NER model or route stories by entity density. The title-token overlap used during clustering is a small heuristic, not named-entity recognition. RSS is the current ingestion path; press releases, social posts, scanned print, and broadcast audio are not currently processed. Sentiment/stance analysis, OCR, and speech-to-text are not implemented.
+
+Fine-tuned transformers, dedicated NER, additional source types, sentiment/stance, OCR, and speech-to-text are possible future extensions. They would require separate quality, coverage, cost, and bias evaluation before being described as product capabilities.
+
 ## Technology
 
 | Area | Technology |
