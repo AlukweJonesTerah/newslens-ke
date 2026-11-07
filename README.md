@@ -125,7 +125,7 @@ See [.env.example](.env.example) for the full blank template. Core values includ
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase access; keep secret |
 | `DATABASE_URL` | Direct/pooler Postgres access for pipeline scripts |
-| `GEMINI_API_KEY` | Embeddings and story summaries |
+| `OpenAI_API_KEY` | Embeddings and story summaries |
 | `APP_BASE_URL` | Public origin used to construct story links |
 | `CRON_SECRET` | Protects scheduled job endpoints |
 | `INFOBIP_BASE_URL`, `INFOBIP_API_KEY`, `INFOBIP_SENDER` | Infobip SMS API configuration |
