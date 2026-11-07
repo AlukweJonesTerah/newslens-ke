@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, Info, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Eye,
+  Info,
+  CheckCircle2,
+  AlertCircle,
+  MessageSquareText,
+  LoaderCircle,
+} from "lucide-react";
 
 type CoverageCategory =
   | "government_focused"
@@ -162,6 +169,8 @@ export default function StoryDetailClient({
   relatedFactChecks?: FactCheck[];
 }) {
   const [activeTab, setActiveTab] = useState("all");
+  const [smsState, setSmsState] = useState<"idle" | "sending" | "sent" | "limited" | "error">("idle");
+  const [smsFeedback, setSmsFeedback] = useState<string | null>(null);
   const sourceNames = [...new Set(articles.map((a) => a.source_name))];
 
   const agreeClaims =
@@ -179,6 +188,32 @@ export default function StoryDetailClient({
       ),
     ...articles.filter((a) => a.published_at === null),
   ];
+
+  async function sendFollowUpSms() {
+    setSmsState("sending");
+    setSmsFeedback(null);
+
+    try {
+      const response = await fetch("/api/sms/follow-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId: story.id }),
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setSmsState(response.status === 429 ? "limited" : "error");
+        setSmsFeedback(result?.error || "Could not send the SMS. Please try again.");
+        return;
+      }
+
+      setSmsState("sent");
+      setSmsFeedback("Follow-up SMS accepted by the provider.");
+    } catch {
+      setSmsState("error");
+      setSmsFeedback("Could not send the SMS. Please try again.");
+    }
+  }
 
   return (
     <main className="flex-1">
@@ -239,6 +274,30 @@ export default function StoryDetailClient({
                       {articles.length} article
                       {articles.length !== 1 ? "s" : ""}
                     </span>
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={sendFollowUpSms}
+                      disabled={smsState === "sending" || smsState === "sent" || smsState === "limited"}
+                      className="inline-flex items-center gap-2 rounded-lg bg-[#1a4d7a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#143c5e] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {smsState === "sending" ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MessageSquareText className="h-4 w-4" />
+                      )}
+                      {smsState === "sent" ? "SMS sent" : "Send follow-up SMS"}
+                    </button>
+                    {smsFeedback && (
+                      <p
+                        role="status"
+                        className={`mt-2 text-xs ${smsState === "sent" ? "text-green-700" : "text-red-700"}`}
+                      >
+                        {smsFeedback}
+                      </p>
+                    )}
                   </div>
 
                 </div>
