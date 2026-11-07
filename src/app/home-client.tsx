@@ -28,6 +28,7 @@ interface StorySource {
   name: string;
 }
 
+
 function getSourceLogoPath(sourceName: string): string | null {
   const name = sourceName.toLowerCase().replace(/[^a-z0-9]/g, "");
   const logos: Record<string, string> = {
