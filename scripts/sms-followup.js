@@ -9,6 +9,7 @@ const DEFAULTS = {
   maxRetries: 2,
   retryDelayMs: 1000,
   sendDelayMs: 1000,
+  batchSize: 20,
 };
 
 const GSM_BASIC = new Set(
@@ -235,6 +236,7 @@ async function runFollowups(options) {
     since: new Date(nowAtStart.getTime() - settings.lookbackDays * 24 * 60 * 60 * 1000),
   });
   const candidates = selectCandidates(deliveries, nowAtStart, settings.lookbackDays, manual ? options.testMsisdn : null);
+  candidates.splice(settings.batchSize);
   const result = { skipped: false, sent: 0, dryRun: 0, failed: 0, ignored: 0, stoppedAtWindowEnd: false };
 
   for (let index = 0; index < candidates.length; index += 1) {
@@ -301,7 +303,7 @@ async function runFollowups(options) {
           callbackData: claim.callback_data,
         });
         await options.store.updateDelivery(claim.id, {
-          status: "sent",
+          status: "accepted",
           provider_message_id: providerResult.messageId,
           provider_status: providerResult.status,
           accepted_at: clock().toISOString(),
