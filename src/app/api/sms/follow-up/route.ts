@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { InfobipSmsError, sendInfobipSms } from "@/lib/infobip-sms";
-import { normalizePhone } from "../../../../../../scripts/sms-followup.js";
+import { normalizePhone } from "../../../../../scripts/sms-followup.js";
 
 const requestSchema = z.object({ storyId: z.string().uuid() });
 export async function POST(request: Request) {

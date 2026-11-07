@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { runFollowups } from "../../../../../scripts/sms-followup.js";
 import { sendInfobipSms } from "@/lib/infobip-sms";
@@ -27,7 +27,7 @@ function readConfig() {
   };
 }
 
-function createStore(supabase: ReturnType<typeof createClient>) {
+function createStore(supabase: SupabaseClient<any>) {
   return {
     async getRecentStoryDeliveries({ since }: { since: Date }) {
       const deliveries: any[] = [];
